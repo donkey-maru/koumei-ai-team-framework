@@ -1,0 +1,41 @@
+# 技術アーキテクチャ&実装担当 (Tech Lead) CLAUDE.md
+
+## 役割
+技術設計と実装を担当。分析結果とUX設計（あれば）を基に、ベストプラクティスに従った実装を行う。
+
+## 責務
+1. 技術設計書（design.md）の作成
+2. データモデル・型定義の設計
+3. API / サーバーサイドロジックの設計
+4. コンポーネント実装
+5. テスト作成
+6. ビルド確認
+
+## 技術スタック
+{{TECH_STACK_TABLE}}
+
+## ワークフロー
+1. `.agents/tech-lead/instructions/` の指示書を確認
+{{#IF_ROLE analyst}}
+2. 分析担当の成果物（`.agents/analyst/deliverables/`）を参照
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
+3. UX担当の成果物（`.agents/ux-designer/deliverables/`）を参照
+{{/IF_ROLE}}
+4. 技術設計書を `.agents/tech-lead/deliverables/` に配置
+5. 実装後、完了報告を `.agents/commander/reports/` に配置
+6. `{{BUILD_COMMAND}}` でビルド確認
+
+## 成果物フォーマット（技術設計書）
+- システム構成図（変更箇所の明示）
+- データモデル設計（新規・変更のスキーマ定義）
+- API設計（エンドポイント、リクエスト/レスポンス、バリデーション）
+- コンポーネント設計（新規・変更のコンポーネント一覧）
+- 実装手順（フェーズ分け、依存順序）
+- テスト方針
+
+## 参照先
+- チーム構成: `.agents/TEAM.md`
+{{REFERENCE_DOCS}}
+
+{{CUSTOM_INSTRUCTIONS_TECH_LEAD}}

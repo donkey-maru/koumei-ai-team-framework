@@ -1,0 +1,99 @@
+# エージェントチーム構成
+
+## プロジェクト: {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}}
+
+### チーム構成
+
+| 役割 | コードネーム | ワークスペース | 責務 | モデル |
+|------|------------|--------------|------|--------|
+| **指揮者** | {{COMMANDER_NAME}} (commander) | `.agents/commander/` | 全体統括、タスク分割、指示出し、最終判断 | {{MODEL_COMMANDER}} |
+| **技術アーキテクチャ&実装担当** | tech-lead | `.agents/tech-lead/` | 技術設計・実装 | {{MODEL_TECH_LEAD}} |
+| **品質レビュー担当** | reviewer | `.agents/reviewer/` | 全成果物のレビュー・問題提起 | {{MODEL_REVIEWER}} |
+{{#IF_ROLE analyst}}
+| **分析担当** | analyst | `.agents/analyst/` | 既存コード・機能分析 | {{MODEL_ANALYST}} |
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
+| **UXデザイン担当** | ux-designer | `.agents/ux-designer/` | モダンUI設計、コンポーネント設計 | {{MODEL_UX_DESIGNER}} |
+{{/IF_ROLE}}
+
+### 技術スタック
+
+{{TECH_STACK_TABLE}}
+
+### Git運用ルール
+
+**{{GIT_MAIN_BRANCH}}ブランチへの直接コミットは禁止。** 以下のフローを厳守すること。
+
+1. タスク作業開始時に `{{GIT_BRANCH_PATTERN}}` ブランチを作成する
+2. 全ての作業（設計ドキュメント・実装・修正）はこのブランチで行う
+{{#IF_DEVELOP_BRANCH}}
+3. 完了後、**{{GIT_DEVELOP_BRANCH}}ブランチに対してPR**を作成する
+4. {{GIT_MAIN_BRANCH}}へのマージは{{GIT_DEVELOP_BRANCH}}経由で行う
+
+```
+{{GIT_MAIN_BRANCH}} ← {{GIT_DEVELOP_BRANCH}} ← {{GIT_BRANCH_PATTERN}}
+```
+{{/IF_DEVELOP_BRANCH}}
+{{#IF_NO_DEVELOP_BRANCH}}
+3. 完了後、**{{GIT_MAIN_BRANCH}}ブランチに対してPR**を作成する
+
+```
+{{GIT_MAIN_BRANCH}} ← {{GIT_BRANCH_PATTERN}}
+```
+{{/IF_NO_DEVELOP_BRANCH}}
+
+### ワークフロー
+
+```
+【準備】
+0. {{GIT_BRANCH_PATTERN}} ブランチを作成
+
+【設計フェーズ】
+1. {{COMMANDER_NAME}}がタスクを定義 → .agents/commander/tasks/
+2. {{COMMANDER_NAME}}が各担当に指示書を配置 → .agents/{担当}/instructions/
+{{#IF_ROLE analyst}}
+3. analyst が既存システム分析 → .agents/analyst/deliverables/
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
+4. ux-designer と tech-lead が並列で設計 → 各 deliverables/
+{{/IF_ROLE}}
+{{#IF_NO_ROLE ux-designer}}
+4. tech-lead が技術設計 → .agents/tech-lead/deliverables/
+{{/IF_NO_ROLE}}
+5. 各担当が完了報告 → .agents/commander/reports/
+6. reviewer がレビュー → .agents/reviewer/reviews/
+7. {{COMMANDER_NAME}}がレビュー結果を確認 → 修正指示 or 承認
+
+【実装フェーズ】
+8. 全ドキュメント承認後 → tech-lead が実装開始
+9. 実装完了 → {{BUILD_COMMAND}} 成功を確認
+10. reviewer がコードレビュー → 指摘修正
+
+【マージ】
+11. {{COMMANDER_NAME}}が最終確認 → PR作成
+```
+
+### 指示書・報告書の命名規則
+
+- 指示書: `{タスクID}-instruction.md` (例: `task-001-instruction.md`)
+- 成果物: `{タスクID}-{種類}.md` (例: `task-001-analysis.md`)
+- レビュー: `{タスクID}-review.md` (例: `task-001-review.md`)
+- 完了報告: `{タスクID}-{担当名}-report.md` (例: `task-001-analyst-report.md`)
+
+{{#IF_MIGRATION}}
+### 移行元プロジェクト
+
+- パス: `{{MIGRATION_SOURCE_PATH}}`
+- フレームワーク: {{MIGRATION_SOURCE_FRAMEWORK}}
+
+### 移行先プロジェクト
+
+- パス: `{{PROJECT_PATH}}`
+- フレームワーク: {{MIGRATION_TARGET_FRAMEWORK}}
+{{/IF_MIGRATION}}
+
+### 参照ドキュメント
+
+{{REFERENCE_DOCS}}

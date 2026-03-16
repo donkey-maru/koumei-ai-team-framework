@@ -1,0 +1,89 @@
+# ============================================================
+# koumei-system 設定ファイル
+# ============================================================
+# このファイルをプロジェクトルートに koumei.config.yaml としてコピーし、
+# プロジェクトに合わせて編集してください。
+# setup.sh がこの設定を読み込み、テンプレートを展開します。
+
+# === プロジェクト基本情報 ===
+project:
+  name: "my-project"
+  description: "プロジェクトの概要を記述"
+  path: "."
+
+# === 移行プロジェクト設定（任意） ===
+# 既存システムからの移行プロジェクトの場合に設定
+migration:
+  enabled: false
+  source_path: ""                    # 移行元プロジェクトのパス
+  source_framework: ""               # 例: "Nuxt 2", "Rails 5", "jQuery"
+  target_framework: ""               # 例: "Next.js 15", "Rails 7", "React"
+
+# === ロール構成 ===
+# コアロール（commander, tech-lead, reviewer）は必須
+# オプションロールはコメント解除で有効化
+roles:
+  - commander
+  - tech-lead
+  - reviewer
+  # - analyst                        # 既存コード分析担当
+  # - ux-designer                    # UI/UX設計担当
+
+# === スキルコマンド設定 ===
+# スキルコマンドの接頭辞（例: /koumei-start, /km-start, /dev-start）
+skill_prefix: "koumei"
+
+# === 指揮者設定 ===
+commander:
+  name: "Commander"                  # コードネーム（例: "諸葛孔明", "Archimedes"）
+
+# === 各ロール モデル設定 ===
+models:
+  commander: "sonnet"
+  tech-lead: "opus"
+  reviewer: "opus"
+  analyst: "sonnet"
+  ux-designer: "sonnet"
+
+# === 技術スタック ===
+tech_stack:
+  language: "TypeScript"
+  framework: "Next.js 15"
+  ui_library: ""                     # 例: "shadcn/ui", "MUI", "Ant Design"
+  styling: ""                        # 例: "Tailwind CSS v4", "CSS Modules"
+  database: ""                       # 例: "Firestore", "PostgreSQL", "MongoDB"
+  testing: ""                        # 例: "Vitest", "Jest", "pytest"
+  build_command: "npm run build"
+  test_command: "npm run test"
+  dev_command: "npm run dev"
+
+# === Git運用 ===
+git:
+  main_branch: "main"
+  develop_branch: "develop"          # 空文字の場合、mainに直接マージ
+  feature_prefix: "feature/"
+  branch_pattern: "feature/task-{number}-{summary}"
+
+# === カスタム指示（各ロールのCLAUDE.mdに追記される） ===
+custom_instructions:
+  commander: ""
+  tech-lead: |
+    # ここにプロジェクト固有の技術指示を記述
+    # 例:
+    # - RSC ファースト: Server Components をデフォルト
+    # - DTO シリアライゼーション: Server→Client 境界で必ず DTO 化
+  reviewer: |
+    # ここにプロジェクト固有のレビュー観点を記述
+    # 例:
+    # - OWASP Top 10 を重点レビュー
+    # - Firestore のセキュリティルール確認
+  analyst: ""
+  ux-designer: ""
+
+# === 参照ドキュメント ===
+# 各ロールが参照すべきドキュメントのリスト
+reference_docs: []
+  # - path: "docs/architecture.md"
+  #   description: "アーキテクチャ設計書"
+  # - path: "CLAUDE.md"
+  #   description: "プロジェクト全体指針"

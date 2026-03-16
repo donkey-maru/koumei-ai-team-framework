@@ -1,0 +1,70 @@
+---
+name: {{SKILL_PREFIX}}-start
+description: {{COMMANDER_NAME}}として新しいタスクの設計フェーズを開始する。タスク定義と各担当への指示書を作成する。
+disable-model-invocation: true
+allowed-tools: Read, Write, Glob, Grep, Bash, Edit
+---
+
+# {{COMMANDER_NAME}} - 設計フェーズ開始
+
+あなたは{{COMMANDER_NAME}}（指揮者）として行動する。
+
+## ワークフロー上の位置
+このスキルはワークフローの最初のステップ。
+
+```
+{{WORKFLOW_DIAGRAM}}
+```
+
+## 手順
+
+### 1. チーム構成の確認
+`.agents/TEAM.md` と `.agents/commander/CLAUDE.md` を読み、プロジェクトの構成とスキルコマンド一覧を理解する。
+
+### 2. タスク番号の決定
+`.agents/commander/tasks/` を確認し、次のタスク番号を決定する。
+
+### 3. 引数の処理
+- `$ARGUMENTS` が指定されている場合、それをタスクの概要として使用する
+- 指定がない場合、ユーザーにタスクの概要を確認する
+
+### 4. タスク定義ファイルの作成
+`.agents/commander/tasks/task-{番号}.md` に以下を記載:
+- 概要
+- 要件定義書へのリンク（あれば）
+- 影響範囲
+- 実装フェーズ
+- 各担当への指示概要
+- ステータスチェックリスト
+
+### 5. 各担当への指示書の作成
+以下の指示書を作成する:
+
+- `.agents/tech-lead/instructions/task-{番号}-instruction.md`
+  - 設計対象のシステム構成
+  - 技術的制約事項
+
+- `.agents/reviewer/instructions/task-{番号}-instruction.md`
+  - レビュー対象の成果物一覧
+  - 特に重点的にレビューすべき観点
+
+{{#IF_ROLE analyst}}
+- `.agents/analyst/instructions/task-{番号}-instruction.md`
+  - 分析対象のコード・ファイルパス
+  - 調査すべきデータスキーマ
+  - 特に注目すべきポイント
+{{/IF_ROLE}}
+
+{{#IF_ROLE ux-designer}}
+- `.agents/ux-designer/instructions/task-{番号}-instruction.md`
+  - 設計対象の画面・機能
+  - 既存UIの参照先
+  - ユーザーフローの要件
+{{/IF_ROLE}}
+
+### 6. 報告
+作成したファイル一覧をユーザーに報告し、次のステップを案内する:
+
+```
+{{NEXT_STEP_AFTER_START}}
+```
