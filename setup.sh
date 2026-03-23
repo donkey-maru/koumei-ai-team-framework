@@ -137,6 +137,182 @@ wizard_select_roles() {
   echo -e "選択されたロール: ${GREEN}${WIZARD_SELECTED_ROLES[*]}${NC}"
 }
 
+# ============================================================
+# プロジェクト自動検出
+# ============================================================
+
+# package.json から依存関係を検出
+detect_pkg_dep() {
+  local pkg="$1"
+  local file="package.json"
+  [[ ! -f "$file" ]] && return 1
+  grep -q "\"$pkg\"" "$file" 2>/dev/null
+}
+
+# package.json の scripts からコマンドを検出
+detect_pkg_script() {
+  local script="$1"
+  local file="package.json"
+  [[ ! -f "$file" ]] && return 1
+  grep -q "\"$script\":" "$file" 2>/dev/null
+}
+
+# 技術スタックの自動検出
+detect_tech_stack() {
+  DETECTED_LANG=""
+  DETECTED_FW=""
+  DETECTED_UI_LIB=""
+  DETECTED_STYLING=""
+  DETECTED_DB=""
+  DETECTED_TESTING=""
+  DETECTED_BUILD_CMD=""
+  DETECTED_TEST_CMD=""
+  DETECTED_DEV_CMD=""
+
+  # --- 言語検出 ---
+  if [[ -f "tsconfig.json" ]]; then
+    DETECTED_LANG="TypeScript"
+  elif [[ -f "package.json" ]]; then
+    DETECTED_LANG="JavaScript"
+  elif [[ -f "requirements.txt" ]] || [[ -f "pyproject.toml" ]] || [[ -f "setup.py" ]]; then
+    DETECTED_LANG="Python"
+  elif [[ -f "Gemfile" ]]; then
+    DETECTED_LANG="Ruby"
+  elif [[ -f "go.mod" ]]; then
+    DETECTED_LANG="Go"
+  elif [[ -f "Cargo.toml" ]]; then
+    DETECTED_LANG="Rust"
+  fi
+
+  # --- フレームワーク検出 ---
+  if detect_pkg_dep "next"; then
+    local next_ver
+    next_ver=$(grep '"next"' package.json 2>/dev/null | head -1 | sed 's/.*: *"\^*~*\([0-9]*\).*/\1/')
+    DETECTED_FW="Next.js ${next_ver}"
+  elif detect_pkg_dep "nuxt"; then
+    local nuxt_ver
+    nuxt_ver=$(grep '"nuxt"' package.json 2>/dev/null | head -1 | sed 's/.*: *"\^*~*\([0-9]*\).*/\1/')
+    DETECTED_FW="Nuxt ${nuxt_ver}"
+  elif detect_pkg_dep "vue"; then
+    DETECTED_FW="Vue"
+  elif detect_pkg_dep "react"; then
+    DETECTED_FW="React"
+  elif detect_pkg_dep "express"; then
+    DETECTED_FW="Express"
+  elif [[ -f "requirements.txt" ]] && grep -q "django" requirements.txt 2>/dev/null; then
+    DETECTED_FW="Django"
+  elif [[ -f "requirements.txt" ]] && grep -q "flask" requirements.txt 2>/dev/null; then
+    DETECTED_FW="Flask"
+  elif [[ -f "Gemfile" ]] && grep -q "rails" Gemfile 2>/dev/null; then
+    DETECTED_FW="Rails"
+  fi
+
+  # --- UIライブラリ検出 ---
+  if detect_pkg_dep "@shadcn" || [[ -f "components.json" ]]; then
+    DETECTED_UI_LIB="shadcn/ui"
+  elif detect_pkg_dep "@mui/material"; then
+    DETECTED_UI_LIB="MUI"
+  elif detect_pkg_dep "vuetify" || detect_pkg_dep "@nuxtjs/vuetify"; then
+    DETECTED_UI_LIB="Vuetify"
+  elif detect_pkg_dep "antd"; then
+    DETECTED_UI_LIB="Ant Design"
+  elif detect_pkg_dep "@chakra-ui"; then
+    DETECTED_UI_LIB="Chakra UI"
+  fi
+
+  # --- スタイリング検出 ---
+  if detect_pkg_dep "tailwindcss"; then
+    local tw_ver
+    tw_ver=$(grep '"tailwindcss"' package.json 2>/dev/null | head -1 | sed 's/.*: *"\^*~*\([0-9]*\).*/\1/')
+    DETECTED_STYLING="Tailwind CSS v${tw_ver}"
+  elif [[ -f "styled-components" ]] || detect_pkg_dep "styled-components"; then
+    DETECTED_STYLING="styled-components"
+  elif detect_pkg_dep "@emotion/react"; then
+    DETECTED_STYLING="Emotion"
+  fi
+  # CSS Modules は設定ファイルなしで使えるため検出困難
+
+  # --- データベース検出 ---
+  if detect_pkg_dep "firebase" || detect_pkg_dep "firebase-admin"; then
+    DETECTED_DB="Firestore"
+  elif detect_pkg_dep "prisma" || detect_pkg_dep "@prisma/client"; then
+    DETECTED_DB="PostgreSQL (Prisma)"
+  elif detect_pkg_dep "mongoose"; then
+    DETECTED_DB="MongoDB"
+  elif detect_pkg_dep "mysql2"; then
+    DETECTED_DB="MySQL"
+  elif detect_pkg_dep "pg"; then
+    DETECTED_DB="PostgreSQL"
+  elif detect_pkg_dep "better-sqlite3" || detect_pkg_dep "sqlite3"; then
+    DETECTED_DB="SQLite"
+  fi
+
+  # --- テストFW検出 ---
+  if detect_pkg_dep "vitest"; then
+    DETECTED_TESTING="Vitest"
+  elif detect_pkg_dep "jest"; then
+    DETECTED_TESTING="Jest"
+  elif detect_pkg_dep "mocha"; then
+    DETECTED_TESTING="Mocha"
+  elif [[ -f "pytest.ini" ]] || [[ -f "pyproject.toml" ]] && grep -q "pytest" pyproject.toml 2>/dev/null; then
+    DETECTED_TESTING="pytest"
+  fi
+
+  # --- コマンド検出 ---
+  if detect_pkg_script "build"; then
+    DETECTED_BUILD_CMD="npm run build"
+  elif [[ -f "Makefile" ]]; then
+    DETECTED_BUILD_CMD="make build"
+  fi
+
+  if detect_pkg_script "test"; then
+    DETECTED_TEST_CMD="npm run test"
+  elif [[ -f "pytest.ini" ]] || [[ -f "pyproject.toml" ]]; then
+    DETECTED_TEST_CMD="pytest"
+  fi
+
+  if detect_pkg_script "dev"; then
+    DETECTED_DEV_CMD="npm run dev"
+  elif detect_pkg_script "start"; then
+    DETECTED_DEV_CMD="npm start"
+  fi
+}
+
+# Git ブランチの自動検出
+detect_git_branches() {
+  DETECTED_MAIN_BRANCH=""
+  DETECTED_DEVELOP_BRANCH=""
+
+  if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    return
+  fi
+
+  # メインブランチ検出
+  if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
+    DETECTED_MAIN_BRANCH="main"
+  elif git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
+    DETECTED_MAIN_BRANCH="master"
+  fi
+
+  # 開発ブランチ検出
+  if git show-ref --verify --quiet refs/heads/develop 2>/dev/null; then
+    DETECTED_DEVELOP_BRANCH="develop"
+  elif git show-ref --verify --quiet refs/heads/development 2>/dev/null; then
+    DETECTED_DEVELOP_BRANCH="development"
+  fi
+}
+
+# 検出結果を表示（値があれば緑✅、なければ黄色で未検出）
+show_detected() {
+  local label="$1"
+  local value="$2"
+  if [[ -n "$value" ]]; then
+    printf "  %-16s ${GREEN}%s ✅${NC}\n" "$label:" "$value" >&2
+  else
+    printf "  %-16s ${YELLOW}（未検出）${NC}\n" "$label:" >&2
+  fi
+}
+
 # フルウィザード（koumei.config.yaml 生成）
 run_wizard() {
   echo ""
@@ -153,29 +329,68 @@ run_wizard() {
   proj_name=$(prompt_input "プロジェクト名" "$default_name")
   proj_desc=$(prompt_input "プロジェクトの説明" "")
 
-  # --- 技術スタック ---
+  # --- 技術スタック（自動検出 → 確認） ---
   echo ""
   echo -e "${BLUE}━━━ 技術スタック ━━━${NC}"
-  echo -e "  AIがコードを書く際に従うべき技術スタックを設定します。"
-  echo -e "  TEAM.md や各ロールの CLAUDE.md に反映され、AIが適切な技術で実装します。"
+  echo -e "  AIがコードを書く際に従うべき技術スタックです。"
+  echo -e "  プロジェクトのファイルから自動検出を試みます..."
   echo ""
+
+  detect_tech_stack
+
+  local has_detection=false
+  [[ -n "$DETECTED_LANG" || -n "$DETECTED_FW" || -n "$DETECTED_UI_LIB" || -n "$DETECTED_STYLING" || -n "$DETECTED_DB" || -n "$DETECTED_TESTING" ]] && has_detection=true
+
+  if $has_detection; then
+    echo -e "  ${GREEN}検出結果:${NC}"
+    show_detected "言語" "$DETECTED_LANG"
+    show_detected "フレームワーク" "$DETECTED_FW"
+    show_detected "UIライブラリ" "$DETECTED_UI_LIB"
+    show_detected "スタイリング" "$DETECTED_STYLING"
+    show_detected "データベース" "$DETECTED_DB"
+    show_detected "テストFW" "$DETECTED_TESTING"
+    show_detected "ビルド" "$DETECTED_BUILD_CMD"
+    show_detected "テスト" "$DETECTED_TEST_CMD"
+    show_detected "開発サーバー" "$DETECTED_DEV_CMD"
+    echo ""
+  fi
+
   local lang fw ui_lib styling db testing
   local build_cmd test_cmd dev_cmd
-  lang=$(prompt_input "言語（AIが書くコードの言語）" "TypeScript")
-  fw=$(prompt_input "フレームワーク（プロジェクトのFW）" "Next.js 15")
-  echo -e "  ${YELLOW}UIライブラリ: AIがUI実装時に使用するコンポーネントライブラリ（例: shadcn/ui, MUI, Vuetify）${NC}"
-  ui_lib=$(prompt_input "UIライブラリ（なければ空Enter）" "")
-  echo -e "  ${YELLOW}スタイリング: CSSの記述方法（例: Tailwind CSS v4, CSS Modules, styled-components）${NC}"
-  styling=$(prompt_input "スタイリング（なければ空Enter）" "")
-  echo -e "  ${YELLOW}データベース: AIがクエリやスキーマを書く際の対象DB${NC}"
-  db=$(prompt_input "データベース（なければ空Enter）" "")
-  echo -e "  ${YELLOW}テストFW: AIがテストを書く際に使用するFW（例: Vitest, Jest, pytest）${NC}"
-  testing=$(prompt_input "テストフレームワーク（なければ空Enter）" "")
-  echo ""
-  echo -e "  ${YELLOW}以下はAIが実装後の検証で実行するコマンドです。${NC}"
-  build_cmd=$(prompt_input "ビルドコマンド" "npm run build")
-  test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
-  dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
+
+  if $has_detection && prompt_yn "検出結果をベースに進めますか？（個別に修正可能）" "y"; then
+    echo ""
+    echo -e "  ${YELLOW}変更したい項目だけ入力してください。そのままならEnter。${NC}"
+    echo ""
+    lang=$(prompt_input "言語" "${DETECTED_LANG:-TypeScript}")
+    fw=$(prompt_input "フレームワーク" "${DETECTED_FW:-}")
+    ui_lib=$(prompt_input "UIライブラリ（なければ空Enter）" "${DETECTED_UI_LIB:-}")
+    styling=$(prompt_input "スタイリング（なければ空Enter）" "${DETECTED_STYLING:-}")
+    db=$(prompt_input "データベース（なければ空Enter）" "${DETECTED_DB:-}")
+    testing=$(prompt_input "テストFW（なければ空Enter）" "${DETECTED_TESTING:-}")
+    build_cmd=$(prompt_input "ビルドコマンド" "${DETECTED_BUILD_CMD:-npm run build}")
+    test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "${DETECTED_TEST_CMD:-}")
+    dev_cmd=$(prompt_input "開発サーバーコマンド" "${DETECTED_DEV_CMD:-npm run dev}")
+  else
+    echo ""
+    echo -e "  ${YELLOW}手動で入力してください。${NC}"
+    echo ""
+    lang=$(prompt_input "言語（AIが書くコードの言語）" "TypeScript")
+    fw=$(prompt_input "フレームワーク（プロジェクトのFW）" "")
+    echo -e "  ${YELLOW}UIライブラリ: AIがUI実装時に使用するコンポーネントライブラリ（例: shadcn/ui, MUI, Vuetify）${NC}"
+    ui_lib=$(prompt_input "UIライブラリ（なければ空Enter）" "")
+    echo -e "  ${YELLOW}スタイリング: CSSの記述方法（例: Tailwind CSS v4, CSS Modules, styled-components）${NC}"
+    styling=$(prompt_input "スタイリング（なければ空Enter）" "")
+    echo -e "  ${YELLOW}データベース: AIがクエリやスキーマを書く際の対象DB${NC}"
+    db=$(prompt_input "データベース（なければ空Enter）" "")
+    echo -e "  ${YELLOW}テストFW: AIがテストを書く際に使用するFW（例: Vitest, Jest, pytest）${NC}"
+    testing=$(prompt_input "テストフレームワーク（なければ空Enter）" "")
+    echo ""
+    echo -e "  ${YELLOW}以下はAIが実装後の検証で実行するコマンドです。${NC}"
+    build_cmd=$(prompt_input "ビルドコマンド" "npm run build")
+    test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
+    dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
+  fi
 
   # --- 成果物出力 ---
   echo ""
@@ -186,15 +401,25 @@ run_wizard() {
   output_dir=$(prompt_input "出力先ディレクトリ" "docs")
   output_instructions=$(prompt_input "追加指示（なければ空Enter）" "")
 
-  # --- Git ---
+  # --- Git（自動検出 → 確認） ---
   echo ""
   echo -e "${BLUE}━━━ Git運用 ━━━${NC}"
   echo -e "  AIがブランチ作成・PR先決定で従うルールです。"
-  echo ""
+
+  detect_git_branches
+
+  if [[ -n "$DETECTED_MAIN_BRANCH" ]]; then
+    echo ""
+    echo -e "  ${GREEN}検出結果:${NC}"
+    show_detected "メインブランチ" "$DETECTED_MAIN_BRANCH"
+    show_detected "開発ブランチ" "$DETECTED_DEVELOP_BRANCH"
+    echo ""
+  fi
+
   local git_main git_develop git_branch_pattern
-  git_main=$(prompt_input "メインブランチ（本番ブランチ）" "main")
+  git_main=$(prompt_input "メインブランチ（本番ブランチ）" "${DETECTED_MAIN_BRANCH:-main}")
   echo -e "  ${YELLOW}開発ブランチ: PRの向き先。空ならメインブランチに直接PR${NC}"
-  git_develop=$(prompt_input "開発ブランチ（なければ空Enter）" "develop")
+  git_develop=$(prompt_input "開発ブランチ（なければ空Enter）" "${DETECTED_DEVELOP_BRANCH:-}")
   echo -e "  ${YELLOW}ブランチ名パターン: {number}はタスク番号、{summary}はタスク概要に自動置換${NC}"
   local default_bp='feature/task-{number}-{summary}'
   git_branch_pattern=$(prompt_input "ブランチ命名パターン" "$default_bp")
