@@ -32,7 +32,33 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit
   - `.agents/commander/requests/` に未着手（ステータス: 未着手）の指示書があれば一覧を表示し、どれを使うか確認する
   - なければユーザーにタスクの概要を確認する
 
-### 4. タスク定義ファイルの作成
+### 4. 作業ブランチの作成
+TEAM.md のGit運用ルールに従い、タスク用の作業ブランチを作成する。
+
+1. 現在のブランチを確認する（`git branch --show-current`）
+{{#IF_DEVELOP_BRANCH}}
+2. `{{GIT_DEVELOP_BRANCH}}` ブランチから作業ブランチを作成する:
+   ```
+   git checkout {{GIT_DEVELOP_BRANCH}}
+   git pull origin {{GIT_DEVELOP_BRANCH}}
+   git checkout -b {{GIT_BRANCH_PATTERN}}
+   ```
+   - `{number}` はタスク番号（例: `001`）に置換
+   - `{summary}` はタスク概要の短い英語要約に置換
+{{/IF_DEVELOP_BRANCH}}
+{{#IF_NO_DEVELOP_BRANCH}}
+2. `{{GIT_MAIN_BRANCH}}` ブランチから作業ブランチを作成する:
+   ```
+   git checkout {{GIT_MAIN_BRANCH}}
+   git pull origin {{GIT_MAIN_BRANCH}}
+   git checkout -b {{GIT_BRANCH_PATTERN}}
+   ```
+   - `{number}` はタスク番号（例: `001`）に置換
+   - `{summary}` はタスク概要の短い英語要約に置換
+{{/IF_NO_DEVELOP_BRANCH}}
+3. ブランチが作成されたことを確認する（`git branch --show-current`）
+
+### 5. タスク定義ファイルの作成
 `.agents/commander/tasks/task-{番号}.md` に以下を記載:
 - 概要
 - 要件定義書へのリンク（あれば）
@@ -41,7 +67,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit
 - 各担当への指示概要
 - ステータスチェックリスト
 
-### 5. 各担当への指示書の作成
+### 6. 各担当への指示書の作成
 以下の指示書を作成する:
 
 - `.agents/tech-lead/instructions/task-{番号}-instruction.md`
@@ -66,7 +92,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit
   - ユーザーフローの要件
 {{/IF_ROLE}}
 
-### 6. 報告
+### 7. 報告
 作成したファイル一覧をユーザーに報告し、次のステップを案内する:
 
 ```
