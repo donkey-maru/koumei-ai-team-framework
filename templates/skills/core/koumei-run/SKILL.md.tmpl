@@ -102,7 +102,13 @@ Skill ツールで `/{{SKILL_PREFIX}}-implement` を実行する。
 全工程が完了しました。
 変更内容を確認し、問題なければ PR を作成してください:
   git add -A && git commit -m "feat: {タスク概要}"
+{{#IF_DEVELOP_BRANCH}}
+  PR先: {{GIT_DEVELOP_BRANCH}} ブランチ（TEAM.md準拠）
+  gh pr create --base {{GIT_DEVELOP_BRANCH}} --title "{タスク概要}" --body "..."
+{{/IF_DEVELOP_BRANCH}}
+{{#IF_NO_DEVELOP_BRANCH}}
   gh pr create --title "{タスク概要}" --body "..."
+{{/IF_NO_DEVELOP_BRANCH}}
 
 最終確認: /{{SKILL_PREFIX}}-status
 ```

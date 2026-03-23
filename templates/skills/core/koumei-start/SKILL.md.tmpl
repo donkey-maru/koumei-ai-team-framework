@@ -34,15 +34,25 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit
 
 ### 4. 作業ブランチの作成
 TEAM.md のGit運用ルールに従い、タスク用の作業ブランチを作成する。
+**重要: Git運用はTEAM.mdの規定が最優先。システム自動検出のPR先ブランチ情報よりTEAM.mdを優先すること。**
 
 1. 現在のブランチを確認する（`git branch --show-current`）
 {{#IF_DEVELOP_BRANCH}}
-2. `{{GIT_DEVELOP_BRANCH}}` ブランチから作業ブランチを作成する:
+2. ベースブランチの存在確認と作業ブランチの作成:
    ```
-   git checkout {{GIT_DEVELOP_BRANCH}}
-   git pull origin {{GIT_DEVELOP_BRANCH}}
-   git checkout -b {{GIT_BRANCH_PATTERN}}
+   git branch -a | grep {{GIT_DEVELOP_BRANCH}}
    ```
+   - `{{GIT_DEVELOP_BRANCH}}` が存在する場合:
+     ```
+     git checkout {{GIT_DEVELOP_BRANCH}}
+     git pull origin {{GIT_DEVELOP_BRANCH}}
+     git checkout -b {{GIT_BRANCH_PATTERN}}
+     ```
+   - `{{GIT_DEVELOP_BRANCH}}` が存在しない場合:
+     - ユーザーに報告し、以下を確認する:
+       a. `{{GIT_DEVELOP_BRANCH}}` ブランチを新規作成してから作業ブランチを切るか
+       b. `{{GIT_MAIN_BRANCH}}` から直接作業ブランチを切るか
+     - ユーザーの指示に従って進める
    - `{number}` はタスク番号（例: `001`）に置換
    - `{summary}` はタスク概要の短い英語要約に置換
 {{/IF_DEVELOP_BRANCH}}
@@ -57,6 +67,9 @@ TEAM.md のGit運用ルールに従い、タスク用の作業ブランチを作
    - `{summary}` はタスク概要の短い英語要約に置換
 {{/IF_NO_DEVELOP_BRANCH}}
 3. ブランチが作成されたことを確認する（`git branch --show-current`）
+{{#IF_DEVELOP_BRANCH}}
+4. **PR先の確認**: このタスクのPR先は `{{GIT_DEVELOP_BRANCH}}` ブランチであることをタスク定義ファイルに記録する
+{{/IF_DEVELOP_BRANCH}}
 
 ### 5. タスク定義ファイルの作成
 `.agents/commander/tasks/task-{番号}.md` に以下を記載:
