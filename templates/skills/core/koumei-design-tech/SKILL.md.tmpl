@@ -28,10 +28,10 @@ allowed-tools: Read, Glob, Grep, Write, Bash, Edit
 
 ### 3. 前提資料の参照
 {{#IF_ROLE analyst}}
-- `.agents/analyst/deliverables/` の分析結果
+- `{{OUTPUT_DIR}}/` の分析結果
 {{/IF_ROLE}}
 {{#IF_ROLE ux-designer}}
-- `.agents/ux-designer/deliverables/` のUX設計（あれば）
+- `{{OUTPUT_DIR}}/` のUX設計（あれば）
 {{/IF_ROLE}}
 - 要件定義書（指示書に記載されたパス）
 
@@ -44,7 +44,7 @@ allowed-tools: Read, Glob, Grep, Write, Bash, Edit
 - エラーハンドリングパターン
 
 ### 5. 技術設計書の作成
-`.agents/tech-lead/deliverables/task-{番号}-design.md` に以下を記載:
+`{{OUTPUT_DIR}}/task-{番号}-design.md` に以下を記載:
 - システム構成図（変更箇所の明示）
 - データモデル設計（新規・変更のスキーマ定義）
 - API設計（エンドポイント、リクエスト/レスポンス、バリデーション）

@@ -64,6 +64,18 @@ git:
   feature_prefix: "feature/"
   branch_pattern: "feature/task-{number}-{summary}"
 
+# === 成果物の出力設定 ===
+# AIエージェントが生成する設計書・レビュー等の出力先
+# プロジェクトの CLAUDE.md や AGENTS.md に出力先の指示がある場合はそちらが優先される
+output:
+  dir: "docs"                            # 成果物の出力ディレクトリ（プロジェクトルート相対）
+                                          # 例: "docs", "docs-confidential", "docs/designs"
+  format: "md"                            # 出力形式（現在は md のみ）
+  instructions: |                         # 成果物に関する追加指示（任意）
+    # 例:
+    # - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
+    # - 見出しレベルは ## から開始すること
+
 # === カスタム指示（各ロールのCLAUDE.mdに追記される） ===
 custom_instructions:
   commander: ""

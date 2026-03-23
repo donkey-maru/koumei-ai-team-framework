@@ -17,12 +17,12 @@
 ## ワークフロー
 1. `.agents/tech-lead/instructions/` の指示書を確認
 {{#IF_ROLE analyst}}
-2. 分析担当の成果物（`.agents/analyst/deliverables/`）を参照
+2. 分析担当の成果物（`{{OUTPUT_DIR}}/`）を参照
 {{/IF_ROLE}}
 {{#IF_ROLE ux-designer}}
-3. UX担当の成果物（`.agents/ux-designer/deliverables/`）を参照
+3. UX担当の成果物（`{{OUTPUT_DIR}}/`）を参照
 {{/IF_ROLE}}
-4. 技術設計書を `.agents/tech-lead/deliverables/` に配置
+4. 技術設計書を `{{OUTPUT_DIR}}/` に配置
 5. 実装後、完了報告を `.agents/commander/reports/` に配置
 6. `{{BUILD_COMMAND}}` でビルド確認
 

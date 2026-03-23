@@ -54,16 +54,16 @@
 1. {{COMMANDER_NAME}}がタスクを定義 → .agents/commander/tasks/
 2. {{COMMANDER_NAME}}が各担当に指示書を配置 → .agents/{担当}/instructions/
 {{#IF_ROLE analyst}}
-3. analyst が既存システム分析 → .agents/analyst/deliverables/
+3. analyst が既存システム分析 → {{OUTPUT_DIR}}/
 {{/IF_ROLE}}
 {{#IF_ROLE ux-designer}}
-4. ux-designer と tech-lead が並列で設計 → 各 deliverables/
+4. ux-designer と tech-lead が並列で設計 → {{OUTPUT_DIR}}/
 {{/IF_ROLE}}
 {{#IF_NO_ROLE ux-designer}}
-4. tech-lead が技術設計 → .agents/tech-lead/deliverables/
+4. tech-lead が技術設計 → {{OUTPUT_DIR}}/
 {{/IF_NO_ROLE}}
 5. 各担当が完了報告 → .agents/commander/reports/
-6. reviewer がレビュー → .agents/reviewer/reviews/
+6. reviewer がレビュー → {{OUTPUT_DIR}}/
 7. {{COMMANDER_NAME}}がレビュー結果を確認 → 修正指示 or 承認
 
 【実装フェーズ】
@@ -74,6 +74,22 @@
 【マージ】
 11. {{COMMANDER_NAME}}が最終確認 → PR作成
 ```
+
+### 成果物の出力ルール
+
+**出力先ディレクトリ:** `{{OUTPUT_DIR}}/`
+
+設計書・分析レポート・レビュー結果などの成果物は、上記ディレクトリに `.{{OUTPUT_FORMAT}}` 形式で出力する。
+
+{{OUTPUT_INSTRUCTIONS}}
+
+**⚠️ 指示の優先順位:**
+
+1. **プロジェクトの CLAUDE.md / AGENTS.md**（テックチーム管理）に成果物出力先の記述がある場合 → **そちらを最優先**
+2. **このファイル（TEAM.md）の設定** → CLAUDE.md に記述がなければこちらに従う
+3. **koumei-system のデフォルト** → 上記いずれもなければ `docs/` に出力
+
+指示書（instructions/）・タスク定義（tasks/）・完了報告（reports/）は `.agents/` 内に配置する（AIの内部通信用）。
 
 ### 指示書・報告書の命名規則
 

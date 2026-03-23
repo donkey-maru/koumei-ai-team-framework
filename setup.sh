@@ -255,6 +255,13 @@ load_config() {
   local default_branch_pattern='feature/task-{number}-{summary}'
   GIT_BRANCH_PATTERN="${GIT_BRANCH_PATTERN:-$default_branch_pattern}"
 
+  # 成果物出力設定
+  OUTPUT_DIR=$(yaml_get "output.dir")
+  OUTPUT_DIR="${OUTPUT_DIR:-docs}"
+  OUTPUT_FORMAT=$(yaml_get "output.format")
+  OUTPUT_FORMAT="${OUTPUT_FORMAT:-md}"
+  OUTPUT_INSTRUCTIONS=$(yaml_get_multiline "output" "instructions")
+
   # ロール一覧
   ROLES=()
   while IFS= read -r role; do
@@ -299,6 +306,8 @@ load_config() {
   export KOUMEI_VAR_MODEL_REVIEWER="$MODEL_REVIEWER"
   export KOUMEI_VAR_MODEL_ANALYST="$MODEL_ANALYST"
   export KOUMEI_VAR_MODEL_UX_DESIGNER="$MODEL_UX_DESIGNER"
+  export KOUMEI_VAR_OUTPUT_DIR="$OUTPUT_DIR"
+  export KOUMEI_VAR_OUTPUT_FORMAT="$OUTPUT_FORMAT"
   export KOUMEI_VAR_MIGRATION_SOURCE_PATH="$MIGRATION_SOURCE_PATH"
   export KOUMEI_VAR_MIGRATION_SOURCE_FRAMEWORK="$MIGRATION_SOURCE_FRAMEWORK"
   export KOUMEI_VAR_MIGRATION_TARGET_FRAMEWORK="$MIGRATION_TARGET_FRAMEWORK"
@@ -415,6 +424,7 @@ process_template() {
   printf '%s' "$CUSTOM_INSTRUCTIONS_ANALYST" > "${vars_dir}/CUSTOM_INSTRUCTIONS_ANALYST"
   printf '%s' "$CUSTOM_INSTRUCTIONS_UX_DESIGNER" > "${vars_dir}/CUSTOM_INSTRUCTIONS_UX_DESIGNER"
   printf '%s' "$REFERENCE_DOCS" > "${vars_dir}/REFERENCE_DOCS"
+  printf '%s' "$OUTPUT_INSTRUCTIONS" > "${vars_dir}/OUTPUT_INSTRUCTIONS"
 
   # 入力をファイルに書き出し
   local input_file
