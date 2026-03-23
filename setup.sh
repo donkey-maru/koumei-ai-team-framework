@@ -35,6 +35,8 @@ DRY_RUN=false
 
 for arg in "$@"; do
   case "$arg" in
+    --init)    MODE="init" ;;
+    --roles)   MODE="roles" ;;
     --update)  MODE="update" ;;
     --clean)   MODE="clean" ;;
     --dry-run) DRY_RUN=true ;;
@@ -44,7 +46,9 @@ for arg in "$@"; do
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Options:"
-      echo "  (none)      Initial setup"
+      echo "  (none)      Initial setup (auto-runs wizard if no config found)"
+      echo "  --init      Run config wizard (create/overwrite koumei.config.yaml)"
+      echo "  --roles     Change role composition only"
       echo "  --update    Re-generate from config (preserves deliverables)"
       echo "  --clean     Remove all generated files"
       echo "  --dry-run   Preview without creating files"
@@ -53,6 +57,301 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# ============================================================
+# 対話式セットアップウィザード
+# ============================================================
+
+# ユーザー入力を取得（デフォルト値付き）
+prompt_input() {
+  local prompt="$1"
+  local default="$2"
+  local result
+
+  if [[ -n "$default" ]]; then
+    printf "${BLUE}%s${NC} [${GREEN}%s${NC}]: " "$prompt" "$default" >&2
+  else
+    printf "${BLUE}%s${NC}: " "$prompt" >&2
+  fi
+  read -r result </dev/tty 2>/dev/null || read -r result
+  echo "${result:-$default}"
+}
+
+# Yes/No入力
+prompt_yn() {
+  local prompt="$1"
+  local default="${2:-n}"
+  local result
+
+  if [[ "$default" == "y" ]]; then
+    printf "${BLUE}%s${NC} [${GREEN}Y${NC}/n]: " "$prompt" >&2
+  else
+    printf "${BLUE}%s${NC} [y/${GREEN}N${NC}]: " "$prompt" >&2
+  fi
+  read -r result </dev/tty 2>/dev/null || read -r result
+  result="${result:-$default}"
+  [[ "$result" =~ ^[Yy] ]]
+}
+
+# ロール選択ウィザード（説明付き）
+# 結果はグローバル変数 WIZARD_SELECTED_ROLES に格納
+wizard_select_roles() {
+  WIZARD_SELECTED_ROLES=("commander" "tech-lead" "reviewer")
+
+  echo ""
+  echo -e "${BLUE}━━━ ロール構成 ━━━${NC}"
+  echo ""
+  echo -e "${GREEN}【コアロール（必須）】${NC}"
+  echo -e "  ✅ ${GREEN}commander${NC}   … 全体統括・タスク分割・指示出し・最終判断を行う指揮者"
+  echo -e "  ✅ ${GREEN}tech-lead${NC}   … 技術設計・アーキテクチャ決定・実装を担当"
+  echo -e "  ✅ ${GREEN}reviewer${NC}    … 設計書・コードの品質レビュー・問題提起を担当"
+  echo ""
+  echo -e "${YELLOW}【オプションロール】${NC}"
+  echo ""
+
+  # analyst
+  echo -e "  ${YELLOW}analyst${NC} … 既存コードベースの調査・分析を担当"
+  echo -e "           移行プロジェクトや大規模リファクタリングで特に有用。"
+  echo -e "           既存の実装パターン・依存関係・技術的負債を可視化する。"
+  if prompt_yn "  analyst を有効にしますか？"; then
+    WIZARD_SELECTED_ROLES+=("analyst")
+    echo -e "  → ${GREEN}✅ 有効${NC}"
+  else
+    echo -e "  → ☐ 無効"
+  fi
+
+  echo ""
+
+  # ux-designer
+  echo -e "  ${YELLOW}ux-designer${NC} … UI/UX設計・コンポーネント設計・画面遷移設計を担当"
+  echo -e "               フロントエンド開発やユーザー向け機能の実装で特に有用。"
+  echo -e "               tech-lead と並列で設計を行い、設計の質を向上させる。"
+  if prompt_yn "  ux-designer を有効にしますか？"; then
+    WIZARD_SELECTED_ROLES+=("ux-designer")
+    echo -e "  → ${GREEN}✅ 有効${NC}"
+  else
+    echo -e "  → ☐ 無効"
+  fi
+
+  echo ""
+  echo -e "選択されたロール: ${GREEN}${WIZARD_SELECTED_ROLES[*]}${NC}"
+}
+
+# フルウィザード（koumei.config.yaml 生成）
+run_wizard() {
+  echo ""
+  echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
+  echo -e "${BLUE}║   koumei-system 初期設定ウィザード       ║${NC}"
+  echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
+  echo ""
+
+  # --- プロジェクト基本情報 ---
+  echo -e "${BLUE}━━━ プロジェクト基本情報 ━━━${NC}"
+  local proj_name proj_desc
+  local default_name
+  default_name=$(basename "$(pwd)")
+  proj_name=$(prompt_input "プロジェクト名" "$default_name")
+  proj_desc=$(prompt_input "プロジェクトの説明" "")
+
+  # --- 技術スタック ---
+  echo ""
+  echo -e "${BLUE}━━━ 技術スタック ━━━${NC}"
+  local lang fw ui_lib styling db testing
+  local build_cmd test_cmd dev_cmd
+  lang=$(prompt_input "言語" "TypeScript")
+  fw=$(prompt_input "フレームワーク" "Next.js 15")
+  ui_lib=$(prompt_input "UIライブラリ（なければ空Enter）" "")
+  styling=$(prompt_input "スタイリング（なければ空Enter）" "")
+  db=$(prompt_input "データベース（なければ空Enter）" "")
+  testing=$(prompt_input "テストフレームワーク（なければ空Enter）" "")
+  build_cmd=$(prompt_input "ビルドコマンド" "npm run build")
+  test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
+  dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
+
+  # --- 成果物出力 ---
+  echo ""
+  echo -e "${BLUE}━━━ 成果物の出力設定 ━━━${NC}"
+  echo -e "  AIが生成する設計書・レビュー結果等の保存先ディレクトリです。"
+  echo -e "  プロジェクトルートからの相対パスで指定してください。"
+  local output_dir output_instructions
+  output_dir=$(prompt_input "出力先ディレクトリ" "docs")
+  output_instructions=$(prompt_input "追加指示（なければ空Enter）" "")
+
+  # --- Git ---
+  echo ""
+  echo -e "${BLUE}━━━ Git運用 ━━━${NC}"
+  local git_main git_develop git_branch_pattern
+  git_main=$(prompt_input "メインブランチ" "main")
+  git_develop=$(prompt_input "開発ブランチ（なければ空Enter）" "develop")
+  local default_bp='feature/task-{number}-{summary}'
+  git_branch_pattern=$(prompt_input "ブランチ命名パターン" "$default_bp")
+
+  # --- スキルプレフィックス ---
+  echo ""
+  echo -e "${BLUE}━━━ スキルコマンド設定 ━━━${NC}"
+  echo -e "  スキルコマンドの接頭辞を決めます。"
+  echo -e "  例: 「koumei」→ /koumei-start, 「km」→ /km-start, 「dev」→ /dev-start"
+  local skill_prefix
+  skill_prefix=$(prompt_input "スキルプレフィックス" "koumei")
+
+  # --- 指揮者 ---
+  echo ""
+  echo -e "${BLUE}━━━ 指揮者設定 ━━━${NC}"
+  echo -e "  AIチームの指揮者のコードネームを決めます。"
+  local commander_name
+  commander_name=$(prompt_input "指揮者の名前" "Commander")
+
+  # --- ロール選択 ---
+  wizard_select_roles
+
+  # --- 移行プロジェクト ---
+  echo ""
+  echo -e "${BLUE}━━━ 移行プロジェクト設定 ━━━${NC}"
+  local mig_enabled="false" mig_source="" mig_source_fw="" mig_target_fw=""
+  if prompt_yn "既存システムからの移行プロジェクトですか？"; then
+    mig_enabled="true"
+    mig_source=$(prompt_input "移行元プロジェクトのパス" "")
+    mig_source_fw=$(prompt_input "移行元フレームワーク（例: Nuxt 2, Rails 5）" "")
+    mig_target_fw=$(prompt_input "移行先フレームワーク（例: Next.js 15）" "$fw")
+  fi
+
+  # --- YAML生成 ---
+  echo ""
+  log_step "koumei.config.yaml を生成中..."
+
+  # ロール配列を生成
+  local roles_yaml=""
+  for r in "${WIZARD_SELECTED_ROLES[@]}"; do
+    roles_yaml+="  - ${r}"$'\n'
+  done
+
+  # output.instructions のYAMLフォーマット
+  local output_inst_yaml=""
+  if [[ -n "$output_instructions" ]]; then
+    output_inst_yaml="  instructions: |
+    ${output_instructions}"
+  else
+    output_inst_yaml="  instructions: \"\""
+  fi
+
+  cat > "$CONFIG_FILE" << YAML_EOF
+# ============================================================
+# koumei-system 設定ファイル
+# Generated by setup wizard v${VERSION}
+# ============================================================
+
+# === プロジェクト基本情報 ===
+project:
+  name: "${proj_name}"
+  description: "${proj_desc}"
+  path: "."
+
+# === 移行プロジェクト設定 ===
+migration:
+  enabled: ${mig_enabled}
+  source_path: "${mig_source}"
+  source_framework: "${mig_source_fw}"
+  target_framework: "${mig_target_fw}"
+
+# === ロール構成 ===
+# コアロール（commander, tech-lead, reviewer）は必須
+# setup.sh --roles で後から変更可能
+roles:
+${roles_yaml}
+# === スキルコマンド設定 ===
+skill_prefix: "${skill_prefix}"
+
+# === 指揮者設定 ===
+commander:
+  name: "${commander_name}"
+
+# === 各ロール モデル設定 ===
+models:
+  commander: "sonnet"
+  tech-lead: "opus"
+  reviewer: "opus"
+  analyst: "sonnet"
+  ux-designer: "sonnet"
+
+# === 技術スタック ===
+tech_stack:
+  language: "${lang}"
+  framework: "${fw}"
+  ui_library: "${ui_lib}"
+  styling: "${styling}"
+  database: "${db}"
+  testing: "${testing}"
+  build_command: "${build_cmd}"
+  test_command: "${test_cmd}"
+  dev_command: "${dev_cmd}"
+
+# === 成果物の出力設定 ===
+output:
+  dir: "${output_dir}"
+  format: "md"
+${output_inst_yaml}
+
+# === Git運用 ===
+git:
+  main_branch: "${git_main}"
+  develop_branch: "${git_develop}"
+  branch_pattern: "${git_branch_pattern}"
+
+# === カスタム指示（各ロールのCLAUDE.mdに追記される） ===
+custom_instructions:
+  commander: ""
+  tech-lead: ""
+  reviewer: ""
+  analyst: ""
+  ux-designer: ""
+
+# === 参照ドキュメント ===
+reference_docs: []
+YAML_EOF
+
+  log_info "koumei.config.yaml を生成しました。"
+  echo ""
+}
+
+# ロール変更ウィザード（既存config のロール部分だけ書き換え）
+run_roles_wizard() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "koumei.config.yaml が見つかりません。先に setup.sh を実行してください。"
+    exit 1
+  fi
+
+  echo ""
+  echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
+  echo -e "${BLUE}║   ロール構成の変更                       ║${NC}"
+  echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
+
+  # 現在のロールを表示
+  echo ""
+  echo -e "現在のロール構成:"
+  local current_roles=()
+  while IFS= read -r role; do
+    [[ -n "$role" ]] && current_roles+=("$role")
+  done < <(yaml_get_array "roles")
+  echo -e "  ${GREEN}${current_roles[*]}${NC}"
+
+  # 新しいロールを選択
+  wizard_select_roles
+
+  # config ファイルのロール部分を書き換え（Perl で）
+  local roles_yaml=""
+  for r in "${WIZARD_SELECTED_ROLES[@]}"; do
+    roles_yaml+="  - ${r}\n"
+  done
+
+  perl -i -0777 -pe "
+    s/^roles:\n(  - .+\n)+/roles:\n${roles_yaml}/m;
+  " "$CONFIG_FILE"
+
+  log_info "ロール構成を更新しました: ${WIZARD_SELECTED_ROLES[*]}"
+  echo ""
+  log_step "変更を反映するためにセットアップを実行します..."
+  echo ""
+}
 
 # ============================================================
 # YAML パーサー（yq優先、なければ簡易awkパーサー）
@@ -196,10 +495,16 @@ yaml_get_multiline() {
 
 load_config() {
   if [[ ! -f "$CONFIG_FILE" ]]; then
-    log_error "設定ファイル '${CONFIG_FILE}' が見つかりません。"
-    log_info "koumei.config.example.yaml をコピーして編集してください:"
-    log_info "  cp ${SCRIPT_DIR}/koumei.config.example.yaml ./${CONFIG_FILE}"
-    exit 1
+    echo ""
+    log_warn "koumei.config.yaml が見つかりません。"
+    echo ""
+    if prompt_yn "初期設定ウィザードを開始しますか？" "y"; then
+      run_wizard
+    else
+      log_info "手動で作成する場合はサンプルをコピーしてください:"
+      log_info "  cp ${SCRIPT_DIR}/koumei.config.example.yaml ./${CONFIG_FILE}"
+      exit 0
+    fi
   fi
 
   log_step "設定ファイルを読み込み中..."
@@ -790,6 +1095,25 @@ do_setup() {
 # 実行
 # ============================================================
 
+# --init: ウィザードのみ実行（configなくてもOK）
+if [[ "$MODE" == "init" ]]; then
+  run_wizard
+  # 生成後にセットアップも実行
+  load_config
+  do_setup
+  exit 0
+fi
+
+# --roles: ロール変更のみ
+if [[ "$MODE" == "roles" ]]; then
+  load_config  # 既存config読み込み（yaml_get_array 用）
+  run_roles_wizard
+  load_config  # 更新されたconfigを再読み込み
+  do_setup
+  exit 0
+fi
+
+# 通常フロー
 load_config
 
 case "$MODE" in
