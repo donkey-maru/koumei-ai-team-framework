@@ -156,14 +156,23 @@ run_wizard() {
   # --- 技術スタック ---
   echo ""
   echo -e "${BLUE}━━━ 技術スタック ━━━${NC}"
+  echo -e "  AIがコードを書く際に従うべき技術スタックを設定します。"
+  echo -e "  TEAM.md や各ロールの CLAUDE.md に反映され、AIが適切な技術で実装します。"
+  echo ""
   local lang fw ui_lib styling db testing
   local build_cmd test_cmd dev_cmd
-  lang=$(prompt_input "言語" "TypeScript")
-  fw=$(prompt_input "フレームワーク" "Next.js 15")
+  lang=$(prompt_input "言語（AIが書くコードの言語）" "TypeScript")
+  fw=$(prompt_input "フレームワーク（プロジェクトのFW）" "Next.js 15")
+  echo -e "  ${YELLOW}UIライブラリ: AIがUI実装時に使用するコンポーネントライブラリ（例: shadcn/ui, MUI, Vuetify）${NC}"
   ui_lib=$(prompt_input "UIライブラリ（なければ空Enter）" "")
+  echo -e "  ${YELLOW}スタイリング: CSSの記述方法（例: Tailwind CSS v4, CSS Modules, styled-components）${NC}"
   styling=$(prompt_input "スタイリング（なければ空Enter）" "")
+  echo -e "  ${YELLOW}データベース: AIがクエリやスキーマを書く際の対象DB${NC}"
   db=$(prompt_input "データベース（なければ空Enter）" "")
+  echo -e "  ${YELLOW}テストFW: AIがテストを書く際に使用するFW（例: Vitest, Jest, pytest）${NC}"
   testing=$(prompt_input "テストフレームワーク（なければ空Enter）" "")
+  echo ""
+  echo -e "  ${YELLOW}以下はAIが実装後の検証で実行するコマンドです。${NC}"
   build_cmd=$(prompt_input "ビルドコマンド" "npm run build")
   test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
   dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
@@ -180,9 +189,13 @@ run_wizard() {
   # --- Git ---
   echo ""
   echo -e "${BLUE}━━━ Git運用 ━━━${NC}"
+  echo -e "  AIがブランチ作成・PR先決定で従うルールです。"
+  echo ""
   local git_main git_develop git_branch_pattern
-  git_main=$(prompt_input "メインブランチ" "main")
+  git_main=$(prompt_input "メインブランチ（本番ブランチ）" "main")
+  echo -e "  ${YELLOW}開発ブランチ: PRの向き先。空ならメインブランチに直接PR${NC}"
   git_develop=$(prompt_input "開発ブランチ（なければ空Enter）" "develop")
+  echo -e "  ${YELLOW}ブランチ名パターン: {number}はタスク番号、{summary}はタスク概要に自動置換${NC}"
   local default_bp='feature/task-{number}-{summary}'
   git_branch_pattern=$(prompt_input "ブランチ命名パターン" "$default_bp")
 
