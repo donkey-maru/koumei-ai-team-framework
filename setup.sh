@@ -894,7 +894,26 @@ process_conditions() {
   echo "$content"
 }
 
-# ファイルを書き出し
+# ファイルがGit管理下かチェック
+is_git_tracked() {
+  local file="$1"
+  git ls-files --error-unmatch "$file" &>/dev/null 2>&1
+}
+
+# 既存ファイルのバックアップ
+backup_file() {
+  local file="$1"
+  local backup_dir=".agents/.backup"
+  local timestamp
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  local backup_path="${backup_dir}/${file//\//_}.${timestamp}.bak"
+
+  mkdir -p "$backup_dir"
+  cp "$file" "$backup_path"
+  log_info "バックアップ: ${file} → ${backup_path}"
+}
+
+# ファイルを書き出し（既存ファイル保護付き）
 write_file() {
   local dest="$1"
   local content="$2"
@@ -902,6 +921,18 @@ write_file() {
   if $DRY_RUN; then
     log_info "[DRY-RUN] Would create: ${dest}"
     return
+  fi
+
+  # 既存ファイルがある場合の保護処理
+  if [[ -f "$dest" ]]; then
+    if is_git_tracked "$dest"; then
+      # Git管理下 → 上書きしない
+      log_warn "スキップ: ${dest}（Git管理下の既存ファイル）"
+      return
+    else
+      # Git管理外 → バックアップしてから上書き
+      backup_file "$dest"
+    fi
   fi
 
   local dir
