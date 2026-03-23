@@ -76,6 +76,38 @@
 12. {{COMMANDER_NAME}}が最終確認 → ブランチをプッシュして停止（PR作成はユーザーが手動で行う）
 ```
 
+### ワークフローとスキルコマンドの対応
+
+| ステップ | 内容 | スキルコマンド | 実行者 |
+|---------|------|--------------|--------|
+| 0 | ブランチ作成 | `/{{SKILL_PREFIX}}-start` 内で自動実行 | commander |
+| 1-2 | タスク定義・指示書配置 | `/{{SKILL_PREFIX}}-start` | commander |
+{{#IF_ROLE analyst}}
+| 3 | 既存コード分析 | `/{{SKILL_PREFIX}}-analyze` | analyst |
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
+| 4 | UX設計+技術設計（並列） | `/{{SKILL_PREFIX}}-design` | ux-designer + tech-lead |
+{{/IF_ROLE}}
+{{#IF_NO_ROLE ux-designer}}
+| 4 | 技術設計 | `/{{SKILL_PREFIX}}-design-tech` | tech-lead |
+{{/IF_NO_ROLE}}
+| 5-7 | レビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
+| 8-9 | 実装 + ビルド確認 | `/{{SKILL_PREFIX}}-implement` | tech-lead |
+| 10-11 | コードレビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
+| 12 | 最終確認 + プッシュ | `/{{SKILL_PREFIX}}-status` | commander |
+
+**備考:**
+- `/{{SKILL_PREFIX}}-request` はステップ0の前段（要件整理）として任意で使用
+- `/{{SKILL_PREFIX}}-run` はステップ1〜12を自動連鎖実行（各レビューでユーザー判断を挟む）
+{{#IF_ROLE ux-designer}}
+
+### 並列実行について
+
+ステップ4の `/{{SKILL_PREFIX}}-design` はオーケストレーターとして機能し、ux-designer と tech-lead の設計作業を **Task ツールによる subagent で並列実行** する。
+これにより設計フェーズの所要時間を短縮する。
+個別に実行したい場合は `/{{SKILL_PREFIX}}-design-ux` と `/{{SKILL_PREFIX}}-design-tech` を使用する。
+{{/IF_ROLE}}
+
 ### 成果物の出力ルール
 
 **出力先ディレクトリ:** `{{OUTPUT_DIR}}/`
@@ -212,6 +244,15 @@
 - パス: `{{PROJECT_PATH}}`
 - フレームワーク: {{MIGRATION_TARGET_FRAMEWORK}}
 {{/IF_MIGRATION}}
+
+### このファイルについて
+
+このファイルは `koumei-ai-team-framework` の `setup.sh` によって、`koumei.config.yaml` の設定とテンプレートから自動生成されたものである。
+
+各スキル（`.claude/skills/*/SKILL.md`）内のワークフロー図や次ステップ案内は、ロール構成に応じて `setup.sh` が動的に生成している。
+スキル内の記述とこのファイルの記述は同一の設定から生成されるため、整合性が保たれる。
+
+設定を変更する場合は `koumei.config.yaml` を編集して `setup.sh` を再実行すること。
 
 ### 参照ドキュメント
 
