@@ -343,12 +343,18 @@ run_wizard() {
 
   if $has_detection; then
     echo -e "  ${GREEN}検出結果:${NC}"
+    echo ""
+    echo -e "  ${YELLOW}【コード生成に影響する設定】${NC}"
+    echo -e "  ${YELLOW}  AIがコードを書く際、以下の技術に従って実装します${NC}"
     show_detected "言語" "$DETECTED_LANG"
     show_detected "フレームワーク" "$DETECTED_FW"
     show_detected "UIライブラリ" "$DETECTED_UI_LIB"
     show_detected "スタイリング" "$DETECTED_STYLING"
     show_detected "データベース" "$DETECTED_DB"
     show_detected "テストFW" "$DETECTED_TESTING"
+    echo ""
+    echo -e "  ${YELLOW}【実装後の検証コマンド】${NC}"
+    echo -e "  ${YELLOW}  AIが実装後にビルド・テストを実行して動作確認します${NC}"
     show_detected "ビルド" "$DETECTED_BUILD_CMD"
     show_detected "テスト" "$DETECTED_TEST_CMD"
     show_detected "開発サーバー" "$DETECTED_DEV_CMD"
@@ -395,10 +401,13 @@ run_wizard() {
   # --- 成果物出力 ---
   echo ""
   echo -e "${BLUE}━━━ 成果物の出力設定 ━━━${NC}"
-  echo -e "  AIが生成する設計書・レビュー結果等の保存先ディレクトリです。"
-  echo -e "  プロジェクトルートからの相対パスで指定してください。"
+  echo -e "  ${YELLOW}AIが生成する設計書・分析レポート・レビュー結果の保存先です。${NC}"
+  echo -e "  ${YELLOW}.agents/ 内部ではなくプロジェクトのドキュメントとして残ります。${NC}"
+  echo -e "  ${YELLOW}例: 「docs」「docs-confidential」「documents」${NC}"
+  echo ""
   local output_dir output_instructions
-  output_dir=$(prompt_input "出力先ディレクトリ" "docs")
+  output_dir=$(prompt_input "出力先ディレクトリ（プロジェクトルートからの相対パス）" "docs")
+  echo -e "  ${YELLOW}追加指示: 出力フォーマットの指定等（例: 「既存の.mdファイルを参考にすること」）${NC}"
   output_instructions=$(prompt_input "追加指示（なければ空Enter）" "")
 
   # --- Git（自動検出 → 確認） ---
@@ -427,15 +436,20 @@ run_wizard() {
   # --- スキルプレフィックス ---
   echo ""
   echo -e "${BLUE}━━━ スキルコマンド設定 ━━━${NC}"
-  echo -e "  スキルコマンドの接頭辞を決めます。"
-  echo -e "  例: 「koumei」→ /koumei-start, 「km」→ /km-start, 「dev」→ /dev-start"
+  echo -e "  ${YELLOW}Claude Code のスラッシュコマンドの接頭辞です。${NC}"
+  echo -e "  ${YELLOW}この接頭辞でスキルディレクトリ名とコマンド名が決まります。${NC}"
+  echo -e "  例: 「koumei」→ /koumei-start, /koumei-run"
+  echo -e "  例: 「km」→ /km-start, /km-run"
+  echo -e "  例: 「dev」→ /dev-start, /dev-run"
   local skill_prefix
   skill_prefix=$(prompt_input "スキルプレフィックス" "koumei")
 
   # --- 指揮者 ---
   echo ""
   echo -e "${BLUE}━━━ 指揮者設定 ━━━${NC}"
-  echo -e "  AIチームの指揮者のコードネームを決めます。"
+  echo -e "  ${YELLOW}AIチームの指揮者（commander）のコードネームです。${NC}"
+  echo -e "  ${YELLOW}スキル説明やタスク定義書に表示されます。${NC}"
+  echo -e "  例: 「諸葛孔明」「Commander」「Archimedes」"
   local commander_name
   commander_name=$(prompt_input "指揮者の名前" "Commander")
 
@@ -445,6 +459,8 @@ run_wizard() {
   # --- 移行プロジェクト ---
   echo ""
   echo -e "${BLUE}━━━ 移行プロジェクト設定 ━━━${NC}"
+  echo -e "  ${YELLOW}既存システムから新システムへの移行プロジェクトの場合に設定します。${NC}"
+  echo -e "  ${YELLOW}有効にすると、分析・設計時に移行元コードの参照指示がAIに含まれます。${NC}"
   local mig_enabled="false" mig_source="" mig_source_fw="" mig_target_fw=""
   if prompt_yn "既存システムからの移行プロジェクトですか？"; then
     mig_enabled="true"
