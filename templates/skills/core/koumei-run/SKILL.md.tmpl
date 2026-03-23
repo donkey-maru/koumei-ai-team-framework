@@ -1,12 +1,13 @@
 ---
 name: {{SKILL_PREFIX}}-run
 description: /{{SKILL_PREFIX}}-request で作成された要件を元に、設計→レビュー→実装→コードレビューを自動で連鎖実行する。PR作成手前で停止。
-allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task, Skill
+allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 ---
 
 # 自動連鎖実行オーケストレーター
 
 あなたは{{COMMANDER_NAME}}（指揮者）として、全ワークフローを自動で連鎖実行する。
+各スキルを Skill ツールで呼び出すのではなく、各ステップの手順を直接実行する。
 
 ## ワークフロー
 
@@ -14,86 +15,199 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task, Skill
 {{WORKFLOW_DIAGRAM}}
 ```
 
-## 制約
+## 共通制約
 
 - **レビュー差し戻し時の最大リトライ**: 3回（超えたら停止してユーザーに報告）
-- **PR作成は行わない**: 全工程完了後、PR作成待ち状態で停止する
+- **PR作成は行わない**: 全工程完了後、プッシュ手前で停止する
 - **エラー発生時**: 即座に停止してユーザーに状況を報告する
+- **ビルドエラー**: エラー数ベースで判定（減少→維持、増加→ロールバック、最大3回）
+- **テストエラー**: 分類して対応（実装起因/既存テスト陳腐化/無関係）、別テスト破壊は即停止、最大2回
 
 ## 手順
 
-### 1. 要件指示書の特定
+### ステップ0: 要件指示書の特定
 
 - `$ARGUMENTS` が指定されている場合、そのタスクIDまたは指示書名を使用
 - 指定がない場合、`.agents/commander/requests/` の最新の指示書を使用
 - 指示書が見つからない場合、エラーを報告して停止
 
-### 2. タスク定義（/{{SKILL_PREFIX}}-start 相当）
+---
 
-Skill ツールで `/{{SKILL_PREFIX}}-start` を実行する。
-- 引数: 特定した要件指示書への参照
+### ステップ1: タスク定義（commander）
 
-完了後、作成されたタスク番号を記録する。
+**実行内容**: タスク定義と各担当への指示書作成
+
+1. `.agents/TEAM.md` を読み、チーム構成を確認する
+2. `.agents/commander/tasks/` の既存タスクを確認し、次のタスク番号を決定する
+3. 要件指示書の内容を読み込む
+4. **ブランチ作成**: TEAM.md または要件指示書のブランチ戦略に従い、Git作業ブランチを作成する
+   - 要件指示書にブランチ名の指定があればそれに従う
+   - なければ TEAM.md の `{{GIT_BRANCH_PATTERN}}` パターンに従う
+   - ベースブランチが存在しない場合はユーザーに報告して停止
+5. タスク定義ファイルを作成: `.agents/commander/tasks/task-{番号}.md`
+   - タスク概要、背景・目的、スコープ、要件一覧、制約事項、作業分担
+6. 各担当への指示書を作成:
+   - `.agents/tech-lead/instructions/task-{番号}-instruction.md`
+   - `.agents/reviewer/instructions/task-{番号}-instruction.md`
+{{#IF_ROLE analyst}}
+   - `.agents/analyst/instructions/task-{番号}-instruction.md`
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
+   - `.agents/ux-designer/instructions/task-{番号}-instruction.md`
+{{/IF_ROLE}}
+7. タスク番号を記録し、以降のステップで使用する
 
 {{#IF_ROLE analyst}}
-### 3. 既存コード分析（/{{SKILL_PREFIX}}-analyze 相当）
+---
 
-Skill ツールで `/{{SKILL_PREFIX}}-analyze` を実行する。
-- 引数: タスク番号
+### ステップ2: 既存コード分析（analyst）
 
-完了後、分析結果が `{{OUTPUT_DIR}}/` に出力されたことを確認する。
+**実行内容**: 既存コードベースの分析
+
+1. `.agents/analyst/CLAUDE.md` を読み、analyst の役割を確認する
+2. `.agents/analyst/instructions/task-{番号}-instruction.md` を読む
+3. 指示書に従い分析を実行する:
+   - 対象機能の既存ソースコード調査
+   - コンポーネント構成の把握
+   - API呼び出し（エンドポイント、リクエスト/レスポンス）
+   - データベーススキーマ
+   - 依存関係（共通ユーティリティ、他機能との連携）
+4. 分析成果物を作成: `{{OUTPUT_DIR}}/task-{番号}-analysis.md`
+   - 機能概要、画面構成、DBスキーマ、APIエンドポイント一覧
+   - ビジネスロジック詳細、依存関係、実装時の注意点
+5. 完了報告: `.agents/commander/reports/task-{番号}-analyst-report.md`
 {{/IF_ROLE}}
 
-### {{#IF_ROLE analyst}}4{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}3{{/IF_NO_ROLE}}. 設計フェーズ
+---
+
+### ステップ{{#IF_ROLE analyst}}3{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}2{{/IF_NO_ROLE}}: 技術設計（tech-lead）
+
+**実行内容**: 技術設計書の作成
+
+1. `.agents/tech-lead/CLAUDE.md` を読み、tech-lead の役割を確認する
+2. `.agents/tech-lead/instructions/task-{番号}-instruction.md` を読む
+3. 前提資料を参照する:
+   - タスク定義（`.agents/commander/tasks/task-{番号}.md`）
+{{#IF_ROLE analyst}}
+   - 分析結果（`{{OUTPUT_DIR}}/task-{番号}-analysis.md`）
+{{/IF_ROLE}}
+   - 要件指示書
+4. 既存コードのパターンを調査する（ディレクトリ構成、命名規則、実装パターン）
+5. 技術設計書を作成: `{{OUTPUT_DIR}}/task-{番号}-design.md`
+   - システム構成図、データモデル設計、API設計
+   - コンポーネント設計、実装手順、テスト方針
+6. 完了報告: `.agents/commander/reports/task-{番号}-tech-lead-report.md`
 
 {{#IF_ROLE ux-designer}}
-Skill ツールで `/{{SKILL_PREFIX}}-design` を実行する（UX設計と技術設計を並列実行）。
+**並列実行**: Task ツールで ux-designer の設計も並列で実行する。
+
+UX設計の手順:
+1. `.agents/ux-designer/CLAUDE.md` を読む
+2. `.agents/ux-designer/instructions/task-{番号}-instruction.md` を読む
+3. UX設計書を作成: `{{OUTPUT_DIR}}/task-{番号}-ux-design.md`
+4. 完了報告: `.agents/commander/reports/task-{番号}-ux-designer-report.md`
 {{/IF_ROLE}}
-{{#IF_NO_ROLE ux-designer}}
-Skill ツールで `/{{SKILL_PREFIX}}-design-tech` を実行する。
-{{/IF_NO_ROLE}}
-- 引数: タスク番号
 
-完了後、設計成果物が `{{OUTPUT_DIR}}/` に出力されたことを確認する。
+---
 
-### {{#IF_ROLE analyst}}5{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}4{{/IF_NO_ROLE}}. 設計レビュー（リトライあり）
+### ステップ{{#IF_ROLE analyst}}4{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}3{{/IF_NO_ROLE}}: 設計レビュー → commander 判定（リトライあり）
+
+**実行内容**: 設計成果物のレビューと指揮者判定
 
 以下をリトライ上限（3回）まで繰り返す:
 
-1. Skill ツールで `/{{SKILL_PREFIX}}-review` を実行する
-2. レビュー結果（`{{OUTPUT_DIR}}/task-{番号}-review.md`）を確認する
-3. **ユーザーにレビュー結果を報告し、判断を仰ぐ**:
+#### A. レビュー実行（reviewer）
+
+1. `.agents/reviewer/CLAUDE.md` を読み、reviewer の役割を確認する
+2. `.agents/reviewer/instructions/task-{番号}-instruction.md` を読む
+3. レビュー対象を収集する:
+   - 技術設計書（`{{OUTPUT_DIR}}/task-{番号}-design.md`）
+{{#IF_ROLE ux-designer}}
+   - UX設計書（`{{OUTPUT_DIR}}/task-{番号}-ux-design.md`）
+{{/IF_ROLE}}
+{{#IF_ROLE analyst}}
+   - 分析結果（`{{OUTPUT_DIR}}/task-{番号}-analysis.md`）
+{{/IF_ROLE}}
+4. 批判的にレビューする（セキュリティ、パフォーマンス、保守性、要件整合性）
+5. 各指摘に重大度（Critical / Major / Minor / Suggestion）を付与
+6. レビュー結果を作成: `{{OUTPUT_DIR}}/task-{番号}-design-review.md`
+   - 総合判定: 承認 / 条件付き承認 / 差し戻し
+
+#### B. commander 判定
+
+7. **レビュー結果をユーザーに報告し、判断を仰ぐ**:
    - reviewer の総合判定（承認 / 条件付き承認 / 差し戻し）
    - Critical / Major 指摘の概要
-   - ユーザーの判断を待つ（自動で次に進まない）
-4. ユーザーの判断:
-   - **承認** → 次のステップへ進む
-   - **修正指示** → 指示に従い修正し、再度レビューを実行する（リトライカウント+1）
-   - **差し戻し** → 設計を修正し、再度レビューを実行する（リトライカウント+1）
-5. リトライ上限に達した場合 → 停止してユーザーに報告する
+   - commander としての所見（指摘の妥当性評価）
+8. **ユーザーの判断を待つ**（自動で次に進まない）:
+   - **承認** → 次のステップへ
+   - **修正指示** → 設計を修正し、再度レビュー（リトライカウント+1）
+   - **中止** → 停止
+9. リトライ上限（3回）到達 → 停止してユーザーに報告
 
-### {{#IF_ROLE analyst}}6{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}5{{/IF_NO_ROLE}}. 実装
+---
 
-Skill ツールで `/{{SKILL_PREFIX}}-implement` を実行する。
-- 引数: タスク番号
+### ステップ{{#IF_ROLE analyst}}5{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}4{{/IF_NO_ROLE}}: 実装（tech-lead）
 
-完了後、ビルドが成功していることを確認する。
+**実行内容**: レビュー通過した設計に基づく実装
 
-### {{#IF_ROLE analyst}}7{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}6{{/IF_NO_ROLE}}. コードレビュー（リトライあり）
+1. レビュー通過を確認（Critical指摘が残っていないこと）
+2. 以下の資料を参照する:
+   - 技術設計書（`{{OUTPUT_DIR}}/task-{番号}-design.md`）
+{{#IF_ROLE ux-designer}}
+   - UX設計書（`{{OUTPUT_DIR}}/task-{番号}-ux-design.md`）
+{{/IF_ROLE}}
+   - レビュー結果（条件付き承認の場合、指摘事項を反映）
+3. TEAM.md の開発規約を確認し、従う
+4. 設計書の実装手順に従い、コードを実装する
+5. **ビルド確認**: `{{BUILD_COMMAND}}` を実行
+   - 成功 → 次へ
+   - 失敗 → エラー数ベースで判定:
+     - エラー減少 → 修正を維持して残りに対応
+     - エラー同数/増加 → ロールバックして別アプローチ
+     - 最大3回で解決しない → 停止してユーザーに報告
+{{#IF_ROLE analyst}}
+6. **テスト確認**: テストコマンドを実行（設定されている場合）
+   - 成功 → 次へ
+   - 失敗 → 分類:
+     - A. 今回の実装起因 → 実装コードを修正（テストは正しい）
+     - B. 既存テストが古い → ユーザーに報告して判断を仰ぐ
+     - C. 無関係な既存失敗 → 今回のスコープ外として報告のみ
+     - 別のテストが新たに壊れた → 即ロールバック＆停止
+     - 最大2回で解決しない → 停止してユーザーに報告
+{{/IF_ROLE}}
+7. 完了報告: `.agents/commander/reports/task-{番号}-tech-lead-implement-report.md`
+
+---
+
+### ステップ{{#IF_ROLE analyst}}6{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}5{{/IF_NO_ROLE}}: コードレビュー → commander 判定（リトライあり）
+
+**実行内容**: 実装コードのレビューと指揮者判定
 
 以下をリトライ上限（3回）まで繰り返す:
 
-1. Skill ツールで `/{{SKILL_PREFIX}}-review` を実行する
-2. レビュー結果を確認する
-3. **ユーザーにコードレビュー結果を報告し、判断を仰ぐ**:
-   - Critical / Major 指摘の概要
-   - ユーザーの判断を待つ（自動で次に進まない）
-4. ユーザーの判断:
-   - **承認** → 完了
-   - **修正指示** → 指摘を修正し、再度レビューを実行する（リトライカウント+1）
-5. リトライ上限に達した場合 → 停止してユーザーに報告する
+#### A. コードレビュー実行（reviewer）
 
-### {{#IF_ROLE analyst}}8{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}7{{/IF_NO_ROLE}}. 完了報告
+1. `.agents/reviewer/CLAUDE.md` を読む
+2. レビュー対象: 実装されたコード（`git diff` で変更内容を確認）
+3. 批判的にレビュー（セキュリティ、パフォーマンス、保守性、設計との整合性）
+4. 各指摘に重大度を付与
+5. レビュー結果を作成: `{{OUTPUT_DIR}}/task-{番号}-code-review.md`
+
+#### B. commander 判定
+
+6. **コードレビュー結果をユーザーに報告し、判断を仰ぐ**:
+   - Critical / Major 指摘の概要
+   - commander としての所見
+7. **ユーザーの判断を待つ**（自動で次に進まない）:
+   - **承認** → 完了へ
+   - **修正指示** → コードを修正し、再度レビュー（リトライカウント+1）
+   - **中止** → 停止
+8. リトライ上限（3回）到達 → 停止してユーザーに報告
+
+---
+
+### ステップ{{#IF_ROLE analyst}}7{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}6{{/IF_NO_ROLE}}: 完了報告
 
 全工程が完了したら、以下をユーザーに報告する:
 
@@ -108,14 +222,16 @@ Skill ツールで `/{{SKILL_PREFIX}}-implement` を実行する。
 
 ```
 全工程が完了しました。
-変更内容を確認し、問題なければ PR を作成してください:
+変更内容を確認し、問題なければコミット・プッシュしてください:
   git add -A && git commit -m "feat: {タスク概要}"
+  git push origin {ブランチ名}
+
+PR作成は手動で行ってください:
 {{#IF_DEVELOP_BRANCH}}
   PR先: {{GIT_DEVELOP_BRANCH}} ブランチ（TEAM.md準拠）
-  gh pr create --base {{GIT_DEVELOP_BRANCH}} --title "{タスク概要}" --body "..."
 {{/IF_DEVELOP_BRANCH}}
 {{#IF_NO_DEVELOP_BRANCH}}
-  gh pr create --title "{タスク概要}" --body "..."
+  PR先: {{GIT_MAIN_BRANCH}} ブランチ
 {{/IF_NO_DEVELOP_BRANCH}}
 
 最終確認: /{{SKILL_PREFIX}}-status
