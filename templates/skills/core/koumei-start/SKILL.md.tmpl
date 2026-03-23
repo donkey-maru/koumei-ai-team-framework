@@ -25,8 +25,12 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit
 `.agents/commander/tasks/` を確認し、次のタスク番号を決定する。
 
 ### 3. 引数の処理
-- `$ARGUMENTS` が指定されている場合、それをタスクの概要として使用する
-- 指定がない場合、ユーザーにタスクの概要を確認する
+- `$ARGUMENTS` が指定されている場合:
+  - `requests/` への言及があれば、`.agents/commander/requests/` 内の該当ファイルを読み込み、要件として使用する
+  - それ以外はタスクの概要として使用する
+- 指定がない場合:
+  - `.agents/commander/requests/` に未着手（ステータス: 未着手）の指示書があれば一覧を表示し、どれを使うか確認する
+  - なければユーザーにタスクの概要を確認する
 
 ### 4. タスク定義ファイルの作成
 `.agents/commander/tasks/task-{番号}.md` に以下を記載:

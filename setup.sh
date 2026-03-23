@@ -672,6 +672,7 @@ do_setup() {
       commander)
         create_dir_with_gitkeep ".agents/commander/tasks"
         create_dir_with_gitkeep ".agents/commander/reports"
+        create_dir_with_gitkeep ".agents/commander/requests"
         ;;
       tech-lead)
         create_dir_with_gitkeep ".agents/tech-lead/instructions"
@@ -757,6 +758,7 @@ do_setup() {
   log_info "=============================="
   echo ""
   log_info "利用可能なスキルコマンド:"
+  log_info "  /${SKILL_PREFIX}-request   要件整理・指示書作成"
   log_info "  /${SKILL_PREFIX}-start     タスク定義・指示書作成"
   if has_role "analyst"; then
     log_info "  /${SKILL_PREFIX}-analyze   既存コード分析"
@@ -770,7 +772,8 @@ do_setup() {
   log_info "  /${SKILL_PREFIX}-implement 実装"
   log_info "  /${SKILL_PREFIX}-status    進捗確認"
   echo ""
-  log_info "最初に /${SKILL_PREFIX}-start でタスクを定義してください。"
+  log_info "要件整理から始める場合は /${SKILL_PREFIX}-request を使ってください。"
+  log_info "要件が明確な場合は /${SKILL_PREFIX}-start で直接タスクを開始できます。"
 }
 
 # ============================================================
