@@ -1,4 +1,4 @@
-# koumei-system
+# koumei-ai-team-framework
 
 Claude Code 向けマルチエージェント開発フローシステム。
 
@@ -20,14 +20,14 @@ Claude Code 向けマルチエージェント開発フローシステム。
 ### 1. リポジトリをクローン
 
 ```bash
-git clone <repository-url> /path/to/koumei-system
+git clone <repository-url> /path/to/koumei-ai-team-framework
 ```
 
 ### 2. プロジェクトディレクトリでセットアップ実行
 
 ```bash
 cd /path/to/my-project
-/path/to/koumei-system/setup.sh
+/path/to/koumei-ai-team-framework/setup.sh
 ```
 
 `koumei.config.yaml` がなければ**対話式ウィザード**が自動起動し、設定ファイルを生成します。

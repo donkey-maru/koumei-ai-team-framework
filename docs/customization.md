@@ -5,7 +5,7 @@
 ### 対話式で変更（推奨）
 
 ```bash
-/path/to/koumei-system/setup.sh --roles
+/path/to/koumei-ai-team-framework/setup.sh --roles
 ```
 
 現在のロール構成が表示され、各ロールの説明を見ながら ON/OFF を選択できます。
@@ -25,7 +25,7 @@ roles:
 
 変更後に再セットアップ:
 ```bash
-/path/to/koumei-system/setup.sh --update
+/path/to/koumei-ai-team-framework/setup.sh --update
 ```
 
 ### コア構成のみ（最小構成）
@@ -115,7 +115,7 @@ migration:
 設定ファイルを最初から作り直したい場合:
 
 ```bash
-/path/to/koumei-system/setup.sh --init
+/path/to/koumei-ai-team-framework/setup.sh --init
 ```
 
 対話式ウィザードが起動し、`koumei.config.yaml` を再生成します。
