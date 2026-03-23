@@ -2,9 +2,17 @@
 
 ## ロール構成の変更
 
-### オプションロールの追加
+### 対話式で変更（推奨）
 
-`koumei.config.yaml` の `roles` セクションでコメントを解除:
+```bash
+/path/to/koumei-system/setup.sh --roles
+```
+
+現在のロール構成が表示され、各ロールの説明を見ながら ON/OFF を選択できます。
+
+### 手動で変更
+
+`koumei.config.yaml` の `roles` セクションを編集:
 
 ```yaml
 roles:
@@ -29,7 +37,7 @@ roles:
   - reviewer
 ```
 
-ワークフロー: `start → design-tech → review → implement → review → status`
+ワークフロー: `request → start → design-tech → review → implement → review → status`
 
 ### フル構成
 
@@ -42,7 +50,7 @@ roles:
   - ux-designer
 ```
 
-ワークフロー: `start → analyze → design(並列) → review → implement → review → status`
+ワークフロー: `request → start → analyze → design(並列) → review → implement → review → status`
 
 ## コマンドプレフィックスの変更
 
@@ -50,9 +58,23 @@ roles:
 skill_prefix: "km"
 ```
 
-再セットアップ後、`/km-start`, `/km-review` 等で利用可能。
+再セットアップ後、`/km-request`, `/km-start`, `/km-review` 等で利用可能。
 
 **注意**: プレフィックス変更前のスキルディレクトリは自動削除されません。必要に応じて手動削除するか、`--clean` 後に再セットアップしてください。
+
+## 成果物の出力先変更
+
+```yaml
+output:
+  dir: "docs-confidential"
+  format: "md"
+  instructions: |
+    - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
+```
+
+### プロジェクト既存の指示との共存
+
+プロジェクトの `CLAUDE.md` や `AGENTS.md` に成果物出力先の指示が既にある場合、**そちらが優先**されます。`koumei.config.yaml` の設定はフォールバックとして機能します。
 
 ## カスタム指示の追加
 
@@ -87,6 +109,16 @@ migration:
 - TEAM.md に移行元/先プロジェクト情報が追記
 - commander の CLAUDE.md に移行元プロジェクトへの参照が追加
 - analyst の CLAUDE.md に分析対象パスが追加
+
+## 設定の再作成
+
+設定ファイルを最初から作り直したい場合:
+
+```bash
+/path/to/koumei-system/setup.sh --init
+```
+
+対話式ウィザードが起動し、`koumei.config.yaml` を再生成します。
 
 ## テンプレートの直接編集
 

@@ -2,6 +2,8 @@
 
 `koumei.config.yaml` の全設定項目の説明。
 
+対話式ウィザード（`setup.sh --init`）で自動生成することもできます。
+
 ## project（必須）
 
 | キー | 型 | 必須 | 説明 |
@@ -36,6 +38,8 @@ roles:
   - ux-designer     # 任意: UXデザイナー
 ```
 
+`setup.sh --roles` で対話式にロール構成を変更できます。
+
 ### ロール別の影響
 
 | ロール | 有効時に展開されるスキル | 無効時の影響 |
@@ -50,9 +54,9 @@ roles:
 | `skill_prefix` | string | `"koumei"` | スキルコマンドの接頭辞 |
 
 例:
-- `"koumei"` → `/koumei-start`, `/koumei-review`
-- `"km"` → `/km-start`, `/km-review`
-- `"dev"` → `/dev-start`, `/dev-review`
+- `"koumei"` → `/koumei-request`, `/koumei-start`, `/koumei-review`
+- `"km"` → `/km-request`, `/km-start`, `/km-review`
+- `"dev"` → `/dev-request`, `/dev-start`, `/dev-review`
 
 ## commander
 
@@ -85,6 +89,35 @@ roles:
 | `build_command` | string | `"npm run build"` | ビルドコマンド |
 | `test_command` | string | `"npm run test"` | テストコマンド |
 | `dev_command` | string | `"npm run dev"` | 開発サーバーコマンド |
+
+## output
+
+AIエージェントが生成する成果物（設計書・レビュー結果等）の出力先設定。
+
+| キー | 型 | デフォルト | 説明 |
+|------|-----|-----------|------|
+| `dir` | string | `"docs"` | 成果物の出力ディレクトリ（プロジェクトルート相対） |
+| `format` | string | `"md"` | 出力形式（現在は md のみ） |
+| `instructions` | string | `""` | 成果物に関する追加指示 |
+
+### 指示の優先順位
+
+成果物の出力先は以下の優先順位で決定されます：
+
+1. **プロジェクトの CLAUDE.md / AGENTS.md** に出力先の記述がある場合 → 最優先
+2. **koumei.config.yaml** の `output.dir` 設定
+3. **デフォルト**（`docs/`）
+
+### 例
+
+```yaml
+output:
+  dir: "docs-confidential"
+  format: "md"
+  instructions: |
+    - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
+    - 見出しレベルは ## から開始すること
+```
 
 ## git
 
