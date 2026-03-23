@@ -64,15 +64,16 @@
 {{/IF_NO_ROLE}}
 5. 各担当が完了報告 → .agents/commander/reports/
 6. reviewer がレビュー → {{OUTPUT_DIR}}/
-7. {{COMMANDER_NAME}}がレビュー結果を確認 → 修正指示 or 承認
+7. **{{COMMANDER_NAME}}がレビュー結果を確認し、ユーザーに報告** → ユーザーの判断を仰ぐ（承認 / 修正指示 / 差し戻し）
 
 【実装フェーズ】
-8. 全ドキュメント承認後 → tech-lead が実装開始
+8. ユーザー承認後 → tech-lead が実装開始
 9. 実装完了 → {{BUILD_COMMAND}} 成功を確認
-10. reviewer がコードレビュー → 指摘修正
+10. reviewer がコードレビュー → {{OUTPUT_DIR}}/
+11. **{{COMMANDER_NAME}}がコードレビュー結果を確認し、ユーザーに報告** → ユーザーの判断を仰ぐ
 
-【マージ】
-11. {{COMMANDER_NAME}}が最終確認 → PR作成
+【完了】
+12. {{COMMANDER_NAME}}が最終確認 → ブランチをプッシュして停止（PR作成はユーザーが手動で行う）
 ```
 
 ### 成果物の出力ルール
@@ -89,14 +90,27 @@
 2. **このファイル（TEAM.md）の設定** → CLAUDE.md に記述がなければこちらに従う
 3. **koumei-ai-team-framework のデフォルト** → 上記いずれもなければ `docs/` に出力
 
-指示書（instructions/）・タスク定義（tasks/）・完了報告（reports/）は `.agents/` 内に配置する（AIの内部通信用）。
+指示書（instructions/）・タスク定義（tasks/）・完了報告（reports/）・要件指示書（requests/）は `.agents/` 内に配置する（AIの内部通信用）。
+
+### .agents/ 内部ディレクトリの役割
+
+| ディレクトリ | 用途 | 例 |
+|------------|------|-----|
+| `commander/tasks/` | タスク定義（要件・フェーズ・チェックリスト） | `task-001.md` |
+| `commander/requests/` | 要件指示書（`/{{SKILL_PREFIX}}-request` で作成） | `ga4-analytics.md` |
+| `commander/reports/` | 各担当からの完了報告 | `task-001-analyst-report.md` |
+| `{担当}/instructions/` | commander から各担当への指示書 | `task-001-instruction.md` |
 
 ### 指示書・報告書の命名規則
 
-- 指示書: `{タスクID}-instruction.md` (例: `task-001-instruction.md`)
-- 成果物: `{タスクID}-{種類}.md` (例: `task-001-analysis.md`)
-- レビュー: `{タスクID}-review.md` (例: `task-001-review.md`)
-- 完了報告: `{タスクID}-{担当名}-report.md` (例: `task-001-analyst-report.md`)
+- 要件指示書: `{要件名}.md` ケバブケース (例: `ga4-analytics.md`)
+- タスク定義: `task-{番号}.md` (例: `task-001.md`)
+- 指示書: `task-{番号}-instruction.md` (例: `task-001-instruction.md`)
+- 成果物: `task-{番号}-{種類}.md` (例: `task-001-analysis.md`)
+- レビュー: `task-{番号}-review.md` (例: `task-001-review.md`)
+- 完了報告（設計）: `task-{番号}-{担当名}-report.md` (例: `task-001-tech-lead-report.md`)
+- 完了報告（実装）: `task-{番号}-{担当名}-implement-report.md` (例: `task-001-tech-lead-implement-report.md`)
+- コードレビュー: `task-{番号}-code-review.md` (例: `task-001-code-review.md`)
 
 {{#IF_MIGRATION}}
 ### 移行元プロジェクト
