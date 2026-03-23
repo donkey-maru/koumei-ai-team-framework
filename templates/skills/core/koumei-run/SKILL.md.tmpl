@@ -1,0 +1,108 @@
+---
+name: {{SKILL_PREFIX}}-run
+description: /{{SKILL_PREFIX}}-request で作成された要件を元に、設計→レビュー→実装→コードレビューを自動で連鎖実行する。PR作成手前で停止。
+allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task, Skill
+---
+
+# 自動連鎖実行オーケストレーター
+
+あなたは{{COMMANDER_NAME}}（指揮者）として、全ワークフローを自動で連鎖実行する。
+
+## ワークフロー
+
+```
+{{WORKFLOW_DIAGRAM}}
+```
+
+## 制約
+
+- **レビュー差し戻し時の最大リトライ**: 3回（超えたら停止してユーザーに報告）
+- **PR作成は行わない**: 全工程完了後、PR作成待ち状態で停止する
+- **エラー発生時**: 即座に停止してユーザーに状況を報告する
+
+## 手順
+
+### 1. 要件指示書の特定
+
+- `$ARGUMENTS` が指定されている場合、そのタスクIDまたは指示書名を使用
+- 指定がない場合、`.agents/commander/requests/` の最新の指示書を使用
+- 指示書が見つからない場合、エラーを報告して停止
+
+### 2. タスク定義（/{{SKILL_PREFIX}}-start 相当）
+
+Skill ツールで `/{{SKILL_PREFIX}}-start` を実行する。
+- 引数: 特定した要件指示書への参照
+
+完了後、作成されたタスク番号を記録する。
+
+{{#IF_ROLE analyst}}
+### 3. 既存コード分析（/{{SKILL_PREFIX}}-analyze 相当）
+
+Skill ツールで `/{{SKILL_PREFIX}}-analyze` を実行する。
+- 引数: タスク番号
+
+完了後、分析結果が `{{OUTPUT_DIR}}/` に出力されたことを確認する。
+{{/IF_ROLE}}
+
+### {{#IF_ROLE analyst}}4{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}3{{/IF_NO_ROLE}}. 設計フェーズ
+
+{{#IF_ROLE ux-designer}}
+Skill ツールで `/{{SKILL_PREFIX}}-design` を実行する（UX設計と技術設計を並列実行）。
+{{/IF_ROLE}}
+{{#IF_NO_ROLE ux-designer}}
+Skill ツールで `/{{SKILL_PREFIX}}-design-tech` を実行する。
+{{/IF_NO_ROLE}}
+- 引数: タスク番号
+
+完了後、設計成果物が `{{OUTPUT_DIR}}/` に出力されたことを確認する。
+
+### {{#IF_ROLE analyst}}5{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}4{{/IF_NO_ROLE}}. 設計レビュー（リトライあり）
+
+以下をリトライ上限（3回）まで繰り返す:
+
+1. Skill ツールで `/{{SKILL_PREFIX}}-review` を実行する
+2. レビュー結果（`{{OUTPUT_DIR}}/task-{番号}-review.md`）を確認する
+3. 判定を確認:
+   - **承認 / 条件付き承認** → 次のステップへ進む
+   - **差し戻し** → 差し戻し理由を元に設計を修正し、再度レビューを実行する（リトライカウント+1）
+4. リトライ上限に達した場合 → 停止してユーザーに報告する
+
+### {{#IF_ROLE analyst}}6{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}5{{/IF_NO_ROLE}}. 実装
+
+Skill ツールで `/{{SKILL_PREFIX}}-implement` を実行する。
+- 引数: タスク番号
+
+完了後、ビルドが成功していることを確認する。
+
+### {{#IF_ROLE analyst}}7{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}6{{/IF_NO_ROLE}}. コードレビュー（リトライあり）
+
+以下をリトライ上限（3回）まで繰り返す:
+
+1. Skill ツールで `/{{SKILL_PREFIX}}-review` を実行する
+2. レビュー結果を確認する
+3. 判定を確認:
+   - **Critical 指摘なし** → 完了
+   - **Critical 指摘あり** → 指摘を修正し、再度レビューを実行する（リトライカウント+1）
+4. リトライ上限に達した場合 → 停止してユーザーに報告する
+
+### {{#IF_ROLE analyst}}8{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}7{{/IF_NO_ROLE}}. 完了報告
+
+全工程が完了したら、以下をユーザーに報告する:
+
+- **実行結果サマリー**
+  - 各ステップの完了状況
+  - 設計レビューのリトライ回数
+  - コードレビューのリトライ回数
+- **変更ファイル一覧**（`git status` の結果）
+- **成果物一覧**（`{{OUTPUT_DIR}}/` 内のファイル）
+
+次のステップを案内する:
+
+```
+全工程が完了しました。
+変更内容を確認し、問題なければ PR を作成してください:
+  git add -A && git commit -m "feat: {タスク概要}"
+  gh pr create --title "{タスク概要}" --body "..."
+
+最終確認: /{{SKILL_PREFIX}}-status
+```

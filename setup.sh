@@ -1106,6 +1106,7 @@ do_setup() {
   log_info "利用可能なスキルコマンド:"
   log_info "  /${SKILL_PREFIX}-request   要件整理・指示書作成"
   log_info "  /${SKILL_PREFIX}-start     タスク定義・指示書作成"
+  log_info "  /${SKILL_PREFIX}-run       全自動実行（設計→レビュー→実装→PR手前）"
   if has_role "analyst"; then
     log_info "  /${SKILL_PREFIX}-analyze   既存コード分析"
   fi
