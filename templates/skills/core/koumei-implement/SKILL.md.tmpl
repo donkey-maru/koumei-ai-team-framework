@@ -64,10 +64,28 @@ Criticalが残っている場合は実装を開始せず、ユーザーに報告
 テストが失敗した場合は、TEAM.md の「異常系の対応ルール > テスト失敗時の対応」に従う。
 失敗テストを分類（A:実装起因 / B:テスト陳腐化 / C:無関係）し、最大2回までリトライ。
 
+{{#IF_CHECK_COMMAND}}
+### 8. Lint/Format チェック（PR前必須）
+実装完了後、README記載の lint/format チェックを実行する:
+```
+{{CHECK_COMMAND}}
+```
+
+- このコマンドは自動修正を伴う想定。実行後に差分が出た場合は**その修正をそのまま採用してコミット対象に含め、続行する**（停止しない）。
+- 自動修正で解消できない lint エラーが残った場合のみ、TEAM.md の「異常系の対応ルール > Lint/Formatチェック失敗時の対応」に従う。
+- **コマンド自体が存在しない場合**（`Missing script` / `command not found` 等）は、このプロジェクトに lint が未導入と判断し、チェックをスキップして完了報告にその旨を記録する（失敗扱いにしない）。
+
+### 9. 完了報告
+`.agents/commander/reports/task-{番号}-tech-lead-implement-report.md` に TEAM.md の「完了報告の共通フォーマット」に従って記載する。Lint/Format チェックの実行結果（実行/スキップ、自動修正の有無）も記載する。
+
+### 10. 次のステップ案内
+{{/IF_CHECK_COMMAND}}
+{{#IF_NO_CHECK_COMMAND}}
 ### 8. 完了報告
 `.agents/commander/reports/task-{番号}-tech-lead-implement-report.md` に TEAM.md の「完了報告の共通フォーマット」に従って記載する。
 
 ### 9. 次のステップ案内
+{{/IF_NO_CHECK_COMMAND}}
 
 ```
 次のステップ: /{{SKILL_PREFIX}}-review でコードレビューを実行してください。

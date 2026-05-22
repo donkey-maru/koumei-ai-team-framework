@@ -68,7 +68,12 @@
 
 【実装フェーズ】
 8. ユーザー承認後 → tech-lead が実装開始
+{{#IF_CHECK_COMMAND}}
+9. 実装完了 → {{BUILD_COMMAND}} 成功を確認 → {{CHECK_COMMAND}}（lint/format）を実行
+{{/IF_CHECK_COMMAND}}
+{{#IF_NO_CHECK_COMMAND}}
 9. 実装完了 → {{BUILD_COMMAND}} 成功を確認
+{{/IF_NO_CHECK_COMMAND}}
 10. reviewer がコードレビュー → {{OUTPUT_DIR}}/
 11. **{{COMMANDER_NAME}}がコードレビュー結果を確認し、ユーザーに報告** → ユーザーの判断を仰ぐ
 
@@ -92,7 +97,12 @@
 | 4 | 技術設計 | `/{{SKILL_PREFIX}}-design-tech` | tech-lead |
 {{/IF_NO_ROLE}}
 | 5-7 | レビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
+{{#IF_CHECK_COMMAND}}
+| 8-9 | 実装 + ビルド確認 + Lint/Formatチェック | `/{{SKILL_PREFIX}}-implement` | tech-lead |
+{{/IF_CHECK_COMMAND}}
+{{#IF_NO_CHECK_COMMAND}}
 | 8-9 | 実装 + ビルド確認 | `/{{SKILL_PREFIX}}-implement` | tech-lead |
+{{/IF_NO_CHECK_COMMAND}}
 | 10-11 | コードレビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
 | 12 | 最終確認 + プッシュ | `/{{SKILL_PREFIX}}-status` | commander |
 
@@ -178,6 +188,9 @@
 | コードレビュー差し戻し | 3回 | 停止してユーザーに報告 |
 | ビルド失敗 | 3回 | 停止してエラー内容を報告 |
 | テスト失敗 | 2回 | 停止して失敗内容を報告 |
+{{#IF_CHECK_COMMAND}}
+| Lint/Formatエラー（自動修正不可分） | 2回 | 停止して残存エラーを報告 |
+{{/IF_CHECK_COMMAND}}
 
 ### 異常系の対応ルール
 
@@ -223,6 +236,25 @@
 - テストを通すためにテストの方を変えない（B分類の場合はユーザー許可必須）
 - 無関係な既存テスト失敗（C分類）は今回のタスクでは対応しない
 - 別のテストが新たに壊れた場合は即停止（波及はエラーの沼の入口）
+
+{{#IF_CHECK_COMMAND}}
+#### Lint/Formatチェック失敗時の対応（`{{CHECK_COMMAND}}`）
+
+```
+チェック実行（自動修正あり）:
+  ├── 差分のみ発生（自動修正で解決）→ 修正をコミット対象に含めて続行（停止しない）
+  ├── 自動修正で解消できない lint エラーが残存 → 該当箇所を手動修正 → 再チェック
+  │     ├── エラー減少 → 修正を維持して残りに対応
+  │     └── エラー同数/増加 → ロールバックして別アプローチ
+  │     └── 2回修正しても解決しない → 停止してユーザーに報告
+  └── コマンドが存在しない（Missing script / command not found）
+        → このプロジェクトは lint 未導入と判断しスキップ。完了報告にその旨を記録（失敗扱いにしない）
+```
+
+**Lint対応の注意:**
+- 自動修正で発生した整形差分は今回の変更に含めてよい（別PRに分けない）
+- lint 設定（biome.json 等）自体は勝手に変更しない。ルール変更が必要ならユーザーに報告
+{{/IF_CHECK_COMMAND}}
 
 #### 指示書・成果物が見つからない
 不足ファイルを特定してユーザーに報告し、前のステップの再実行を案内する。

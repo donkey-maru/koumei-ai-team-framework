@@ -89,6 +89,16 @@ roles:
 | `build_command` | string | `"npm run build"` | ビルドコマンド |
 | `test_command` | string | `"npm run test"` | テストコマンド |
 | `dev_command` | string | `"npm run dev"` | 開発サーバーコマンド |
+| `check_command` | string | `""` | lint/format チェックコマンド（PR前に実行）。例: `"npm run check"`（Biome）。**空の場合はチェック工程をスキップ**（lint未導入プロジェクトでも安全） |
+
+### check_command の挙動
+
+`check_command` を設定すると、`/{prefix}-implement`（実装直後）と `/{prefix}-status`（PR提案前）で lint/format チェックが実行されます。
+
+- 自動修正（`biome check --write` 等）で差分が出た場合は、その修正をコミット対象に含めて続行します（停止しません）。
+- 自動修正で解消できない lint エラーが残った場合のみ修正対応し、最大2回で解決しなければ停止して報告します。
+- 設定したコマンドが実行先プロジェクトに存在しない場合（`Missing script` 等）は、lint 未導入と判断してスキップします（失敗扱いにしません）。
+- 空（`""`）の場合は、生成されるスキル・TEAM.md からチェック工程自体が省かれます。
 
 ## output
 

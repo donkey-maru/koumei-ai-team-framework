@@ -67,3 +67,13 @@ allowed-tools: Read, Glob, Grep
 - レビュー承認・実装未着手 → `/{{SKILL_PREFIX}}-implement`
 - 実装完了・コードレビュー未着手 → `/{{SKILL_PREFIX}}-review`
 - 全完了 → PR作成を提案
+{{#IF_CHECK_COMMAND}}
+
+### 5. PR前チェック（Lint/Format）
+全工程完了でPR作成を提案する前に、README記載の lint/format チェックが通っていることを確認する:
+```
+{{CHECK_COMMAND}}
+```
+- 未実行・差分が残っている場合はPRを提案する前に実行を促す（自動修正の差分はコミットに含める）。
+- コマンドが存在しない場合（lint未導入プロジェクト）はスキップして良い旨を伝える。
+{{/IF_CHECK_COMMAND}}

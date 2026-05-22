@@ -22,6 +22,9 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 - **エラー発生時**: 即座に停止してユーザーに状況を報告する
 - **ビルドエラー**: エラー数ベースで判定（減少→維持、増加→ロールバック、最大3回）
 - **テストエラー**: 分類して対応（実装起因/既存テスト陳腐化/無関係）、別テスト破壊は即停止、最大2回
+{{#IF_CHECK_COMMAND}}
+- **Lint/Formatチェック**: 実装後に `{{CHECK_COMMAND}}` を実行。自動修正の差分は採用して続行。コマンド未導入ならスキップ
+{{/IF_CHECK_COMMAND}}
 
 ## 手順
 
@@ -80,7 +83,12 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}3{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}2{{/IF_NO_ROLE}}: 技術設計（tech-lead）
+{{#IF_ROLE analyst}}
+### ステップ3: 技術設計（tech-lead）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ2: 技術設計（tech-lead）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 技術設計書の作成
 
@@ -110,7 +118,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}4{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}3{{/IF_NO_ROLE}}: 設計レビュー → commander 判定（リトライあり）
+{{#IF_ROLE analyst}}
+### ステップ4: 設計レビュー → commander 判定（リトライあり）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ3: 設計レビュー → commander 判定（リトライあり）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 設計成果物のレビューと指揮者判定
 
@@ -147,7 +160,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}5{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}4{{/IF_NO_ROLE}}: 実装（tech-lead）
+{{#IF_ROLE analyst}}
+### ステップ5: 実装（tech-lead）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ4: 実装（tech-lead）
+{{/IF_NO_ROLE}}
 
 **実行内容**: レビュー通過した設計に基づく実装
 
@@ -166,7 +184,6 @@ UX設計の手順:
      - エラー減少 → 修正を維持して残りに対応
      - エラー同数/増加 → ロールバックして別アプローチ
      - 最大3回で解決しない → 停止してユーザーに報告
-{{#IF_ROLE analyst}}
 6. **テスト確認**: テストコマンドを実行（設定されている場合）
    - 成功 → 次へ
    - 失敗 → 分類:
@@ -175,12 +192,22 @@ UX設計の手順:
      - C. 無関係な既存失敗 → 今回のスコープ外として報告のみ
      - 別のテストが新たに壊れた → 即ロールバック＆停止
      - 最大2回で解決しない → 停止してユーザーに報告
-{{/IF_ROLE}}
-7. 完了報告: `.agents/commander/reports/task-{番号}-tech-lead-implement-report.md`
+{{#IF_CHECK_COMMAND}}
+7. **Lint/Format チェック（PR前必須）**: `{{CHECK_COMMAND}}` を実行
+   - 自動修正で差分が出たら、その修正を採用してコミット対象に含め続行（停止しない）
+   - 自動修正で解消できない lint エラーのみ修正対応（最大2回、解決しなければ停止して報告）
+   - コマンド未導入（`Missing script` 等）ならスキップして完了報告に記録（失敗扱いにしない）
+{{/IF_CHECK_COMMAND}}
+8. 完了報告: `.agents/commander/reports/task-{番号}-tech-lead-implement-report.md`
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}6{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}5{{/IF_NO_ROLE}}: コードレビュー → commander 判定（リトライあり）
+{{#IF_ROLE analyst}}
+### ステップ6: コードレビュー → commander 判定（リトライあり）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ5: コードレビュー → commander 判定（リトライあり）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 実装コードのレビューと指揮者判定
 
@@ -207,7 +234,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}7{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}6{{/IF_NO_ROLE}}: 完了報告
+{{#IF_ROLE analyst}}
+### ステップ7: 完了報告
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ6: 完了報告
+{{/IF_NO_ROLE}}
 
 全工程が完了したら、以下をユーザーに報告する:
 

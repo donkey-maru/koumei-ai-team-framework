@@ -56,6 +56,8 @@ tech_stack:
   build_command: "npm run build"
   test_command: "npm run test"
   dev_command: "npm run dev"
+  check_command: ""                  # lint/format チェック（PR前に実行）。例: "npm run check"（Biome）, "npm run lint"
+                                      # 空の場合はチェック工程をスキップ（lint未導入プロジェクトでも安全）
 
 # === Git運用 ===
 git:
