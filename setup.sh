@@ -168,6 +168,7 @@ detect_tech_stack() {
   DETECTED_BUILD_CMD=""
   DETECTED_TEST_CMD=""
   DETECTED_DEV_CMD=""
+  DETECTED_CHECK_CMD=""
 
   # --- 言語検出 ---
   if [[ -f "tsconfig.json" ]]; then
@@ -276,6 +277,13 @@ detect_tech_stack() {
   elif detect_pkg_script "start"; then
     DETECTED_DEV_CMD="npm start"
   fi
+
+  # lint/format チェックコマンド検出（"check" を優先、なければ "lint"）
+  if detect_pkg_script "check"; then
+    DETECTED_CHECK_CMD="npm run check"
+  elif detect_pkg_script "lint"; then
+    DETECTED_CHECK_CMD="npm run lint"
+  fi
 }
 
 # Git ブランチの自動検出
@@ -359,12 +367,14 @@ run_wizard() {
     echo -e "  ${YELLOW}  AIが実装後にビルド・テストを実行して動作確認します${NC}"
     show_detected "ビルド" "$DETECTED_BUILD_CMD"
     show_detected "テスト" "$DETECTED_TEST_CMD"
+    show_detected "Lint/Format" "$DETECTED_CHECK_CMD"
+    echo -e "    ${YELLOW}↑ PR前に実行する lint/format チェック（Biome/ESLint等）${NC}"
     show_detected "開発サーバー" "$DETECTED_DEV_CMD"
     echo ""
   fi
 
   local lang fw ui_lib styling db testing
-  local build_cmd test_cmd dev_cmd
+  local build_cmd test_cmd dev_cmd check_cmd
 
   if $has_detection && prompt_yn "検出結果をベースに進めますか？（個別に修正可能）" "y"; then
     echo ""
@@ -378,6 +388,8 @@ run_wizard() {
     testing=$(prompt_input "テストFW（なければ空Enter）" "${DETECTED_TESTING:-}")
     build_cmd=$(prompt_input "ビルドコマンド" "${DETECTED_BUILD_CMD:-npm run build}")
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "${DETECTED_TEST_CMD:-}")
+    echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
+    check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "${DETECTED_CHECK_CMD:-}")
     dev_cmd=$(prompt_input "開発サーバーコマンド" "${DETECTED_DEV_CMD:-npm run dev}")
   else
     echo ""
@@ -397,6 +409,8 @@ run_wizard() {
     echo -e "  ${YELLOW}以下はAIが実装後の検証で実行するコマンドです。${NC}"
     build_cmd=$(prompt_input "ビルドコマンド" "npm run build")
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
+    echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
+    check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "")
     dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
   fi
 
@@ -540,6 +554,7 @@ tech_stack:
   build_command: "${build_cmd}"
   test_command: "${test_cmd}"
   dev_command: "${dev_cmd}"
+  check_command: "${check_cmd}"
 
 # === 成果物の出力設定 ===
 output:
@@ -807,6 +822,8 @@ load_config() {
   BUILD_COMMAND="${BUILD_COMMAND:-npm run build}"
   TEST_COMMAND=$(yaml_get "tech_stack.test_command")
   TEST_COMMAND="${TEST_COMMAND:-npm run test}"
+  # lint/format チェック: デフォルトなし（空ならチェック工程をスキップ）
+  CHECK_COMMAND=$(yaml_get "tech_stack.check_command")
 
   # Git設定
   GIT_MAIN_BRANCH=$(yaml_get "git.main_branch")
@@ -859,6 +876,7 @@ load_config() {
   export KOUMEI_VAR_SKILL_PREFIX="$SKILL_PREFIX"
   export KOUMEI_VAR_BUILD_COMMAND="$BUILD_COMMAND"
   export KOUMEI_VAR_TEST_COMMAND="$TEST_COMMAND"
+  export KOUMEI_VAR_CHECK_COMMAND="$CHECK_COMMAND"
   export KOUMEI_VAR_GIT_MAIN_BRANCH="$GIT_MAIN_BRANCH"
   export KOUMEI_VAR_GIT_DEVELOP_BRANCH="$GIT_DEVELOP_BRANCH"
   export KOUMEI_VAR_GIT_BRANCH_PATTERN="$GIT_BRANCH_PATTERN"
@@ -901,6 +919,7 @@ generate_tech_stack_table() {
   [[ -n "$TECH_STYLING" ]]     && table+="| スタイリング | ${TECH_STYLING} |"$'\n'
   [[ -n "$TECH_DATABASE" ]]    && table+="| データベース | ${TECH_DATABASE} |"$'\n'
   [[ -n "$TECH_TESTING" ]]     && table+="| テスト | ${TECH_TESTING} |"$'\n'
+  [[ -n "$CHECK_COMMAND" ]]    && table+="| Lint/Format | \`${CHECK_COMMAND}\` |"$'\n'
   echo "$table"
 }
 
@@ -1068,8 +1087,9 @@ process_conditions() {
     my %active_roles = map { $_ => 1 } split(/,/, $ARGV[0]);
     my $migration = $ARGV[1] eq "true" ? 1 : 0;
     my $has_develop = length($ARGV[2]) > 0 ? 1 : 0;
+    my $has_check = length($ARGV[3]) > 0 ? 1 : 0;
 
-    open(my $fh, "<", $ARGV[3]) or die "Cannot open: $!";
+    open(my $fh, "<", $ARGV[4]) or die "Cannot open: $!";
     my @lines = <$fh>;
     close $fh;
 
@@ -1131,8 +1151,28 @@ process_conditions() {
         next;
       }
 
+      # {{#IF_CHECK_COMMAND}}
+      if ($line =~ /\{\{#IF_CHECK_COMMAND\}\}/) {
+        if (@skip_stack && $skip_stack[-1]) {
+          push @skip_stack, 1;
+        } else {
+          push @skip_stack, $has_check ? 0 : 1;
+        }
+        next;
+      }
+
+      # {{#IF_NO_CHECK_COMMAND}}
+      if ($line =~ /\{\{#IF_NO_CHECK_COMMAND\}\}/) {
+        if (@skip_stack && $skip_stack[-1]) {
+          push @skip_stack, 1;
+        } else {
+          push @skip_stack, $has_check ? 1 : 0;
+        }
+        next;
+      }
+
       # Closing tags
-      if ($line =~ /\{\{\/(IF_ROLE|IF_NO_ROLE|IF_MIGRATION|IF_DEVELOP_BRANCH|IF_NO_DEVELOP_BRANCH)\}\}/) {
+      if ($line =~ /\{\{\/(IF_ROLE|IF_NO_ROLE|IF_MIGRATION|IF_DEVELOP_BRANCH|IF_NO_DEVELOP_BRANCH|IF_CHECK_COMMAND|IF_NO_CHECK_COMMAND)\}\}/) {
         pop @skip_stack if @skip_stack;
         next;
       }
@@ -1144,7 +1184,7 @@ process_conditions() {
     }
 
     print join("\n", @result) . "\n";
-  ' "$roles_csv" "$MIGRATION_ENABLED" "$GIT_DEVELOP_BRANCH" "$tmpfile_cond")
+  ' "$roles_csv" "$MIGRATION_ENABLED" "$GIT_DEVELOP_BRANCH" "$CHECK_COMMAND" "$tmpfile_cond")
 
   rm -f "$tmpfile_cond"
   echo "$content"
