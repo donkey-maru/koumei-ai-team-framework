@@ -83,7 +83,12 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}3{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}2{{/IF_NO_ROLE}}: 技術設計（tech-lead）
+{{#IF_ROLE analyst}}
+### ステップ3: 技術設計（tech-lead）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ2: 技術設計（tech-lead）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 技術設計書の作成
 
@@ -113,7 +118,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}4{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}3{{/IF_NO_ROLE}}: 設計レビュー → commander 判定（リトライあり）
+{{#IF_ROLE analyst}}
+### ステップ4: 設計レビュー → commander 判定（リトライあり）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ3: 設計レビュー → commander 判定（リトライあり）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 設計成果物のレビューと指揮者判定
 
@@ -150,7 +160,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}5{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}4{{/IF_NO_ROLE}}: 実装（tech-lead）
+{{#IF_ROLE analyst}}
+### ステップ5: 実装（tech-lead）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ4: 実装（tech-lead）
+{{/IF_NO_ROLE}}
 
 **実行内容**: レビュー通過した設計に基づく実装
 
@@ -169,7 +184,6 @@ UX設計の手順:
      - エラー減少 → 修正を維持して残りに対応
      - エラー同数/増加 → ロールバックして別アプローチ
      - 最大3回で解決しない → 停止してユーザーに報告
-{{#IF_ROLE analyst}}
 6. **テスト確認**: テストコマンドを実行（設定されている場合）
    - 成功 → 次へ
    - 失敗 → 分類:
@@ -178,7 +192,6 @@ UX設計の手順:
      - C. 無関係な既存失敗 → 今回のスコープ外として報告のみ
      - 別のテストが新たに壊れた → 即ロールバック＆停止
      - 最大2回で解決しない → 停止してユーザーに報告
-{{/IF_ROLE}}
 {{#IF_CHECK_COMMAND}}
 7. **Lint/Format チェック（PR前必須）**: `{{CHECK_COMMAND}}` を実行
    - 自動修正で差分が出たら、その修正を採用してコミット対象に含め続行（停止しない）
@@ -189,7 +202,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}6{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}5{{/IF_NO_ROLE}}: コードレビュー → commander 判定（リトライあり）
+{{#IF_ROLE analyst}}
+### ステップ6: コードレビュー → commander 判定（リトライあり）
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ5: コードレビュー → commander 判定（リトライあり）
+{{/IF_NO_ROLE}}
 
 **実行内容**: 実装コードのレビューと指揮者判定
 
@@ -216,7 +234,12 @@ UX設計の手順:
 
 ---
 
-### ステップ{{#IF_ROLE analyst}}7{{/IF_ROLE}}{{#IF_NO_ROLE analyst}}6{{/IF_NO_ROLE}}: 完了報告
+{{#IF_ROLE analyst}}
+### ステップ7: 完了報告
+{{/IF_ROLE}}
+{{#IF_NO_ROLE analyst}}
+### ステップ6: 完了報告
+{{/IF_NO_ROLE}}
 
 全工程が完了したら、以下をユーザーに報告する:
 
