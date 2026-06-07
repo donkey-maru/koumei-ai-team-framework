@@ -67,7 +67,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 
 **実行内容**: 既存コードベースの分析
 
-1. `.agents/analyst/CLAUDE.md` を読み、analyst の役割を確認する
+1. `.agents/analyst/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、analyst の役割を確認する
 2. `.agents/analyst/instructions/task-{番号}-instruction.md` を読む
 3. 指示書に従い分析を実行する:
    - 対象機能の既存ソースコード調査
@@ -92,7 +92,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 
 **実行内容**: 技術設計書の作成
 
-1. `.agents/tech-lead/CLAUDE.md` を読み、tech-lead の役割を確認する
+1. `.agents/tech-lead/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、tech-lead の役割を確認する
 2. `.agents/tech-lead/instructions/task-{番号}-instruction.md` を読む
 3. 前提資料を参照する:
    - タスク定義（`.agents/commander/tasks/task-{番号}.md`）
@@ -107,10 +107,10 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
 6. 完了報告: `.agents/commander/reports/task-{番号}-tech-lead-report.md`
 
 {{#IF_ROLE ux-designer}}
-**並列実行**: Task ツールで ux-designer の設計も並列で実行する。
+**並列実行**: 利用可能なサブエージェント機能で ux-designer の設計も並列で実行する。
 
 UX設計の手順:
-1. `.agents/ux-designer/CLAUDE.md` を読む
+1. `.agents/ux-designer/{{AGENT_INSTRUCTIONS_FILENAME}}` を読む
 2. `.agents/ux-designer/instructions/task-{番号}-instruction.md` を読む
 3. UX設計書を作成: `{{OUTPUT_DIR}}/task-{番号}-ux-design.md`
 4. 完了報告: `.agents/commander/reports/task-{番号}-ux-designer-report.md`
@@ -131,7 +131,7 @@ UX設計の手順:
 
 #### A. レビュー実行（reviewer）
 
-1. `.agents/reviewer/CLAUDE.md` を読み、reviewer の役割を確認する
+1. `.agents/reviewer/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、reviewer の役割を確認する
 2. `.agents/reviewer/instructions/task-{番号}-instruction.md` を読む
 3. レビュー対象を収集する:
    - 技術設計書（`{{OUTPUT_DIR}}/task-{番号}-design.md`）
@@ -215,7 +215,7 @@ UX設計の手順:
 
 #### A. コードレビュー実行（reviewer）
 
-1. `.agents/reviewer/CLAUDE.md` を読む
+1. `.agents/reviewer/{{AGENT_INSTRUCTIONS_FILENAME}}` を読む
 2. レビュー対象: 実装されたコード（`git diff` で変更内容を確認）
 3. 批判的にレビュー（セキュリティ、パフォーマンス、保守性、設計との整合性）
 4. 各指摘に重大度を付与

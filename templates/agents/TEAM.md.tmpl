@@ -113,7 +113,7 @@
 
 ### 並列実行について
 
-ステップ4の `/{{SKILL_PREFIX}}-design` はオーケストレーターとして機能し、ux-designer と tech-lead の設計作業を **Task ツールによる subagent で並列実行** する。
+ステップ4の `/{{SKILL_PREFIX}}-design` はオーケストレーターとして機能し、ux-designer と tech-lead の設計作業を **利用可能なサブエージェント機能で並列実行** する。
 これにより設計フェーズの所要時間を短縮する。
 個別に実行したい場合は `/{{SKILL_PREFIX}}-design-ux` と `/{{SKILL_PREFIX}}-design-tech` を使用する。
 {{/IF_ROLE}}
@@ -128,8 +128,8 @@
 
 **⚠️ 指示の優先順位:**
 
-1. **プロジェクトの CLAUDE.md / AGENTS.md**（テックチーム管理）に成果物出力先の記述がある場合 → **そちらを最優先**
-2. **このファイル（TEAM.md）の設定** → CLAUDE.md に記述がなければこちらに従う
+1. **プロジェクトの AGENTS.md / CLAUDE.md**（テックチーム管理）に成果物出力先の記述がある場合 → **そちらを最優先**
+2. **このファイル（TEAM.md）の設定** → {{AGENT_INSTRUCTIONS_FILENAME}} に記述がなければこちらに従う
 3. **koumei-ai-team-framework のデフォルト** → 上記いずれもなければ `docs/` に出力
 
 指示書（instructions/）・タスク定義（tasks/）・完了報告（reports/）・要件指示書（requests/）は `.agents/` 内に配置する（AIの内部通信用）。
@@ -281,7 +281,7 @@
 
 このファイルは `koumei-ai-team-framework` の `setup.sh` によって、`koumei.config.yaml` の設定とテンプレートから自動生成されたものである。
 
-各スキル（`.claude/skills/*/SKILL.md`）内のワークフロー図や次ステップ案内は、ロール構成に応じて `setup.sh` が動的に生成している。
+各スキル（`{{SKILLS_DIR}}/*/SKILL.md`）内のワークフロー図や次ステップ案内は、ロール構成に応じて `setup.sh` が動的に生成している。
 スキル内の記述とこのファイルの記述は同一の設定から生成されるため、整合性が保たれる。
 
 設定を変更する場合は `koumei.config.yaml` を編集して `setup.sh` を再実行すること。

@@ -30,6 +30,8 @@ roles:
   # - ux-designer                    # UI/UX設計担当
 
 # === スキルコマンド設定 ===
+# 対象CLI: "codex"（.codex/skills + AGENTS.md）または "claude"（.claude/skills + CLAUDE.md）
+target_cli: "codex"
 # スキルコマンドの接頭辞（例: /koumei-start, /km-start, /dev-start）
 skill_prefix: "koumei"
 
@@ -38,12 +40,13 @@ commander:
   name: "Commander"                  # コードネーム（例: "諸葛孔明", "Archimedes"）
 
 # === 各ロール モデル設定 ===
+# Codex CLI では gpt-5.3-codex 等、Claude Code では sonnet/opus 等、利用するCLIに合わせて指定
 models:
-  commander: "sonnet"
-  tech-lead: "opus"
-  reviewer: "opus"
-  analyst: "sonnet"
-  ux-designer: "sonnet"
+  commander: "gpt-5.3-codex"
+  tech-lead: "gpt-5.3-codex"
+  reviewer: "gpt-5.3-codex"
+  analyst: "gpt-5.3-codex"
+  ux-designer: "gpt-5.3-codex"
 
 # === 技術スタック ===
 tech_stack:
@@ -68,7 +71,7 @@ git:
 
 # === 成果物の出力設定 ===
 # AIエージェントが生成する設計書・レビュー等の出力先
-# プロジェクトの CLAUDE.md や AGENTS.md に出力先の指示がある場合はそちらが優先される
+# プロジェクトの AGENTS.md や CLAUDE.md に出力先の指示がある場合はそちらが優先される
 output:
   dir: "docs"                            # 成果物の出力ディレクトリ（プロジェクトルート相対）
                                           # 例: "docs", "docs-confidential", "docs/designs"
@@ -78,7 +81,7 @@ output:
     # - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
     # - 見出しレベルは ## から開始すること
 
-# === カスタム指示（各ロールのCLAUDE.mdに追記される） ===
+# === カスタム指示（各ロールの指示ファイルに追記される） ===
 custom_instructions:
   commander: ""
   tech-lead: |
@@ -99,5 +102,5 @@ custom_instructions:
 reference_docs: []
   # - path: "docs/architecture.md"
   #   description: "アーキテクチャ設計書"
-  # - path: "CLAUDE.md"
+  # - path: "AGENTS.md"
   #   description: "プロジェクト全体指針"

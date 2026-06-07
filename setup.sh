@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 CONFIG_FILE="koumei.config.yaml"
 VERSION="1.0.0"
+DEFAULT_TARGET_CLI="codex"
 
 # --- カラー出力 ---
 RED='\033[0;31m'
@@ -452,7 +453,7 @@ run_wizard() {
   # --- スキルプレフィックス ---
   echo ""
   echo -e "${BLUE}━━━ スキルコマンド設定 ━━━${NC}"
-  echo -e "  ${YELLOW}Claude Code のスラッシュコマンドの接頭辞です。${NC}"
+  echo -e "  ${YELLOW}Codex CLI / Claude Code のスキルコマンド接頭辞です。${NC}"
   echo -e "  ${YELLOW}この接頭辞でスキルディレクトリ名とコマンド名が決まります。${NC}"
   echo -e "  例: 「koumei」→ /koumei-start, /koumei-run"
   echo -e "  例: 「km」→ /km-start, /km-run"
@@ -529,6 +530,7 @@ migration:
 roles:
 ${roles_yaml}
 # === スキルコマンド設定 ===
+target_cli: "codex"
 skill_prefix: "${skill_prefix}"
 
 # === 指揮者設定 ===
@@ -537,11 +539,11 @@ commander:
 
 # === 各ロール モデル設定 ===
 models:
-  commander: "sonnet"
-  tech-lead: "opus"
-  reviewer: "opus"
-  analyst: "sonnet"
-  ux-designer: "sonnet"
+  commander: "gpt-5.3-codex"
+  tech-lead: "gpt-5.3-codex"
+  reviewer: "gpt-5.3-codex"
+  analyst: "gpt-5.3-codex"
+  ux-designer: "gpt-5.3-codex"
 
 # === 技術スタック ===
 tech_stack:
@@ -568,7 +570,7 @@ git:
   develop_branch: "${git_develop}"
   branch_pattern: "${git_branch_pattern}"
 
-# === カスタム指示（各ロールのCLAUDE.mdに追記される） ===
+# === カスタム指示（各ロールの指示ファイルに追記される） ===
 custom_instructions:
   commander: ""
   tech-lead: ""
@@ -648,7 +650,7 @@ awk_yaml_get() {
   # トップレベルの単純なキー
   if [[ "$key" != *.* ]]; then
     awk -v key="$key" '
-      $0 ~ "^"key":" { gsub(/^[^:]+:[[:space:]]*/, ""); gsub(/["\x27]/, ""); print; exit }
+      $0 ~ "^"key":" { gsub(/^[^:]+:[[:space:]]*/, ""); sub(/[[:space:]]+#.*/, ""); gsub(/["\x27]/, ""); print; exit }
     ' "$file"
     return
   fi
@@ -663,6 +665,7 @@ awk_yaml_get() {
     in_parent && /^[a-zA-Z_]/ { in_parent = 0 }
     in_parent && $0 ~ "^[[:space:]]+"child":" {
       gsub(/^[[:space:]]+[^:]+:[[:space:]]*/, "")
+      sub(/[[:space:]]+#.*/, "")
       gsub(/["\x27]/, "")
       print
       exit
@@ -681,6 +684,7 @@ awk_yaml_get_array() {
     in_key && /^[a-zA-Z_]/ { exit }
     in_key && /^[[:space:]]*-[[:space:]]/ {
       gsub(/^[[:space:]]*-[[:space:]]*/, "")
+      sub(/[[:space:]]+#.*/, "")
       gsub(/["\x27[:space:]]/, "")
       if ($0 !~ /^#/ && $0 != "") print
     }
@@ -792,6 +796,29 @@ load_config() {
   MIGRATION_TARGET_FRAMEWORK=$(yaml_get "migration.target_framework")
 
   # スキルプレフィックス
+  TARGET_CLI=$(yaml_get "target_cli")
+  TARGET_CLI="${TARGET_CLI:-$DEFAULT_TARGET_CLI}"
+  case "$TARGET_CLI" in
+    codex)
+      AI_CLI_NAME="Codex CLI"
+      SKILLS_DIR=".codex/skills"
+      AGENT_INSTRUCTIONS_FILENAME="AGENTS.md"
+      ;;
+    claude)
+      AI_CLI_NAME="Claude Code"
+      SKILLS_DIR=".claude/skills"
+      AGENT_INSTRUCTIONS_FILENAME="CLAUDE.md"
+      ;;
+    *)
+      log_warn "不明な target_cli '${TARGET_CLI}' のため codex として扱います。"
+      TARGET_CLI="codex"
+      AI_CLI_NAME="Codex CLI"
+      SKILLS_DIR=".codex/skills"
+      AGENT_INSTRUCTIONS_FILENAME="AGENTS.md"
+      ;;
+  esac
+
+  # スキルプレフィックス
   SKILL_PREFIX=$(yaml_get "skill_prefix")
   SKILL_PREFIX="${SKILL_PREFIX:-koumei}"
 
@@ -801,15 +828,23 @@ load_config() {
 
   # モデル設定
   MODEL_COMMANDER=$(yaml_get "models.commander")
-  MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
   MODEL_TECH_LEAD=$(yaml_get "models.tech-lead")
-  MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-opus}"
   MODEL_REVIEWER=$(yaml_get "models.reviewer")
-  MODEL_REVIEWER="${MODEL_REVIEWER:-opus}"
   MODEL_ANALYST=$(yaml_get "models.analyst")
-  MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
   MODEL_UX_DESIGNER=$(yaml_get "models.ux-designer")
-  MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
+  if [[ "$TARGET_CLI" == "claude" ]]; then
+    MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
+    MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-opus}"
+    MODEL_REVIEWER="${MODEL_REVIEWER:-opus}"
+    MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
+    MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
+  else
+    MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
+    MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
+    MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
+    MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
+    MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
+  fi
 
   # 技術スタック
   TECH_LANGUAGE=$(yaml_get "tech_stack.language")
@@ -872,6 +907,10 @@ load_config() {
   export KOUMEI_VAR_PROJECT_NAME="$PROJECT_NAME"
   export KOUMEI_VAR_PROJECT_DESCRIPTION="$PROJECT_DESCRIPTION"
   export KOUMEI_VAR_PROJECT_PATH="$PROJECT_PATH"
+  export KOUMEI_VAR_TARGET_CLI="$TARGET_CLI"
+  export KOUMEI_VAR_AI_CLI_NAME="$AI_CLI_NAME"
+  export KOUMEI_VAR_SKILLS_DIR="$SKILLS_DIR"
+  export KOUMEI_VAR_AGENT_INSTRUCTIONS_FILENAME="$AGENT_INSTRUCTIONS_FILENAME"
   export KOUMEI_VAR_COMMANDER_NAME="$COMMANDER_NAME"
   export KOUMEI_VAR_SKILL_PREFIX="$SKILL_PREFIX"
   export KOUMEI_VAR_BUILD_COMMAND="$BUILD_COMMAND"
@@ -892,6 +931,7 @@ load_config() {
   export KOUMEI_VAR_MIGRATION_TARGET_FRAMEWORK="$MIGRATION_TARGET_FRAMEWORK"
 
   log_info "プロジェクト: ${PROJECT_NAME}"
+  log_info "対象CLI: ${AI_CLI_NAME}"
   log_info "ロール: ${ROLES[*]}"
   log_info "スキルプレフィックス: ${SKILL_PREFIX}"
 }
@@ -1263,11 +1303,12 @@ do_clean() {
   # スキルディレクトリ内のkoumei-ai-team-framework生成ファイルを削除
   local prefix="${SKILL_PREFIX:-koumei}"
 
-  if [[ -d ".claude/skills" ]]; then
-    for dir in .claude/skills/${prefix}-*; do
+  for skills_base in ".codex/skills" ".claude/skills"; do
+    [[ -d "$skills_base" ]] || continue
+    for dir in "${skills_base}"/${prefix}-*; do
       [[ -d "$dir" ]] && rm -rf "$dir" && log_info "削除: $dir"
     done
-  fi
+  done
 
   # .agents/ ディレクトリを削除（成果物も含む）
   if [[ -d ".agents" ]]; then
@@ -1306,7 +1347,7 @@ do_setup() {
       content=$(cat "$tmpl")
       content=$(process_template "$content")
       content=$(process_conditions "$content")
-      write_file ".agents/${role_dir}/CLAUDE.md" "$content"
+      write_file ".agents/${role_dir}/${AGENT_INSTRUCTIONS_FILENAME}" "$content"
     fi
 
     # 成果物ディレクトリ
@@ -1336,7 +1377,7 @@ do_setup() {
         content=$(cat "$tmpl")
         content=$(process_template "$content")
         content=$(process_conditions "$content")
-        write_file ".agents/${role_dir}/CLAUDE.md" "$content"
+        write_file ".agents/${role_dir}/${AGENT_INSTRUCTIONS_FILENAME}" "$content"
       fi
 
       create_dir_with_gitkeep ".agents/${role_dir}/instructions"
@@ -1360,7 +1401,7 @@ do_setup() {
       content=$(cat "$tmpl")
       content=$(process_template "$content")
       content=$(process_conditions "$content")
-      write_file ".claude/skills/${target_name}/SKILL.md" "$content"
+      write_file "${SKILLS_DIR}/${target_name}/SKILL.md" "$content"
     fi
   done
 
@@ -1388,7 +1429,7 @@ do_setup() {
         content=$(cat "$tmpl")
         content=$(process_template "$content")
         content=$(process_conditions "$content")
-        write_file ".claude/skills/${target_name}/SKILL.md" "$content"
+        write_file "${SKILLS_DIR}/${target_name}/SKILL.md" "$content"
       fi
     fi
   done

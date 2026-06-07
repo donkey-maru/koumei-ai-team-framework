@@ -74,7 +74,7 @@ output:
 
 ### プロジェクト既存の指示との共存
 
-プロジェクトの `CLAUDE.md` や `AGENTS.md` に成果物出力先の指示が既にある場合、**そちらが優先**されます。`koumei.config.yaml` の設定はフォールバックとして機能します。
+プロジェクトの `AGENTS.md` や `CLAUDE.md` に成果物出力先の指示が既にある場合、**そちらが優先**されます。`koumei.config.yaml` の設定はフォールバックとして機能します。
 
 ## カスタム指示の追加
 
@@ -107,8 +107,8 @@ migration:
 
 これにより:
 - TEAM.md に移行元/先プロジェクト情報が追記
-- commander の CLAUDE.md に移行元プロジェクトへの参照が追加
-- analyst の CLAUDE.md に分析対象パスが追加
+- commander の指示ファイルに移行元プロジェクトへの参照が追加
+- analyst の指示ファイルに分析対象パスが追加
 
 ## 設定の再作成
 
@@ -122,6 +122,7 @@ migration:
 
 ## テンプレートの直接編集
 
-展開後のファイル（`.agents/*/CLAUDE.md`, `.claude/skills/*/SKILL.md`）を直接編集することも可能です。
+展開後のファイル（`.agents/*/AGENTS.md`, `.codex/skills/*/SKILL.md`）を直接編集することも可能です。
+`target_cli: "claude"` の場合は `.agents/*/CLAUDE.md`, `.claude/skills/*/SKILL.md` が対象です。
 
 **注意**: `setup.sh --update` を実行すると上書きされるため、カスタマイズは `custom_instructions` 経由で行うことを推奨します。

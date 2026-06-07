@@ -1,6 +1,7 @@
 # koumei-ai-team-framework
 
-Claude Code 向けマルチエージェント開発フローシステム。
+Codex CLI 向けマルチエージェント開発フローシステム。
+`target_cli: "claude"` を指定すると、従来どおり Claude Code 向けにも展開できます。
 
 複数のAIエージェントロール（指揮者・技術リード・レビュアー等）が協調し、要件整理→タスク定義→分析→設計→レビュー→実装の段階的開発フローを実現します。
 
@@ -12,7 +13,7 @@ Claude Code 向けマルチエージェント開発フローシステム。
 - **コア/オプション構成**: 最小3ロール（指揮者+技術+レビュー）から始め、必要に応じて拡張
 - **技術スタック非依存**: 設定ファイルでプロジェクト固有の技術情報を注入
 - **成果物出力先の設定**: プロジェクトごとに設計書・レビュー結果の保存先を指定可能
-- **プロジェクト既存指示の尊重**: CLAUDE.md / AGENTS.md の指示がある場合はそちらを優先
+- **プロジェクト既存指示の尊重**: AGENTS.md / CLAUDE.md の指示がある場合はそちらを優先
 - **コマンドプレフィックス変更可能**: `/koumei-start` を `/km-start` や `/dev-start` に変更可能
 
 ## クイックスタート
@@ -32,7 +33,7 @@ cd /path/to/my-project
 
 `koumei.config.yaml` がなければ**対話式ウィザード**が自動起動し、設定ファイルを生成します。
 
-### 3. Claude Code でスキルコマンドを実行
+### 3. Codex CLI でスキルコマンドを実行
 
 ```
 /koumei-request "GA4アナリティクス計測設定"
@@ -96,7 +97,7 @@ output:
 
 ### 指示の優先順位
 
-1. **プロジェクトの CLAUDE.md / AGENTS.md** の記述（テックチーム管理）→ 最優先
+1. **プロジェクトの AGENTS.md / CLAUDE.md** の記述（テックチーム管理）→ 最優先
 2. **koumei.config.yaml** の `output.dir` 設定
 3. **デフォルト**（`docs/`）
 
@@ -110,19 +111,19 @@ output:
 ├── .agents/                        ← AI内部通信
 │   ├── TEAM.md                     ← チーム構成・ルール
 │   ├── commander/
-│   │   ├── CLAUDE.md               ← 指揮者の役割定義
+│   │   ├── AGENTS.md               ← 指揮者の役割定義
 │   │   ├── tasks/                  ← タスク定義書
 │   │   ├── requests/               ← 要件整理の指示書
 │   │   └── reports/                ← 各担当からの完了報告
 │   ├── tech-lead/
-│   │   ├── CLAUDE.md
+│   │   ├── AGENTS.md
 │   │   └── instructions/           ← commanderからの指示
 │   ├── reviewer/
-│   │   ├── CLAUDE.md
+│   │   ├── AGENTS.md
 │   │   └── instructions/
 │   ├── analyst/                    ← オプション
 │   └── ux-designer/                ← オプション
-├── .claude/skills/                 ← スキルコマンド定義
+├── .codex/skills/                 ← スキルコマンド定義
 │   ├── koumei-request/SKILL.md
 │   ├── koumei-start/SKILL.md
 │   ├── koumei-design-tech/SKILL.md

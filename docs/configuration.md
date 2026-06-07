@@ -47,6 +47,24 @@ roles:
 | `analyst` | `analyze` | 分析フェーズをスキップ |
 | `ux-designer` | `design-ux`, `design`(並列オーケストレーター) | UX設計フェーズをスキップ、並列実行なし |
 
+## target_cli
+
+| キー | 型 | デフォルト | 説明 |
+|------|-----|-----------|------|
+| `target_cli` | string | `"codex"` | 生成先CLI。`"codex"` は `.codex/skills` と `.agents/*/AGENTS.md`、`"claude"` は `.claude/skills` と `.agents/*/CLAUDE.md` を生成 |
+
+### 例
+
+```yaml
+target_cli: "codex"
+```
+
+Claude Code 向けに従来形式で使う場合:
+
+```yaml
+target_cli: "claude"
+```
+
 ## skill_prefix
 
 | キー | 型 | デフォルト | 説明 |
@@ -66,15 +84,15 @@ roles:
 
 ## models
 
-各ロールで使用するAIモデル。
+各ロールで使用するAIモデル。`target_cli` に合わせて、Codex CLI では `gpt-5.3-codex` 等、Claude Code では `sonnet` / `opus` 等を指定します。
 
 | キー | 型 | デフォルト | 説明 |
 |------|-----|-----------|------|
-| `commander` | string | `"sonnet"` | 指揮者のモデル |
-| `tech-lead` | string | `"opus"` | 技術リードのモデル |
-| `reviewer` | string | `"opus"` | レビュアーのモデル |
-| `analyst` | string | `"sonnet"` | 分析担当のモデル |
-| `ux-designer` | string | `"sonnet"` | UXデザイナーのモデル |
+| `commander` | string | `"gpt-5.3-codex"` | 指揮者のモデル |
+| `tech-lead` | string | `"gpt-5.3-codex"` | 技術リードのモデル |
+| `reviewer` | string | `"gpt-5.3-codex"` | レビュアーのモデル |
+| `analyst` | string | `"gpt-5.3-codex"` | 分析担当のモデル |
+| `ux-designer` | string | `"gpt-5.3-codex"` | UXデザイナーのモデル |
 
 ## tech_stack
 
@@ -114,7 +132,7 @@ AIエージェントが生成する成果物（設計書・レビュー結果等
 
 成果物の出力先は以下の優先順位で決定されます：
 
-1. **プロジェクトの CLAUDE.md / AGENTS.md** に出力先の記述がある場合 → 最優先
+1. **プロジェクトの AGENTS.md / CLAUDE.md** に出力先の記述がある場合 → 最優先
 2. **koumei.config.yaml** の `output.dir` 設定
 3. **デフォルト**（`docs/`）
 
@@ -140,7 +158,7 @@ output:
 
 ## custom_instructions
 
-各ロールのCLAUDE.mdに追記されるカスタム指示。YAML複数行記法（`|`）を使用。
+各ロールの指示ファイル（Codex CLI では `AGENTS.md`、Claude Code では `CLAUDE.md`）に追記されるカスタム指示。YAML複数行記法（`|`）を使用。
 
 ```yaml
 custom_instructions:
