@@ -1,7 +1,7 @@
 # koumei-ai-team-framework
 
-Codex CLI 向けマルチエージェント開発フローシステム。
-`target_cli: "claude"` を指定すると、従来どおり Claude Code 向けにも展開できます。
+Codex CLI / Claude Code / Antigravity CLI 対応のマルチエージェント開発フローシステム。
+`target_cli` で展開先を切り替えられます（`"codex"` / `"claude"` / `"antigravity"`）。
 
 複数のAIエージェントロール（指揮者・技術リード・レビュアー等）が協調し、要件整理→タスク定義→分析→設計→レビュー→実装の段階的開発フローを実現します。
 
@@ -105,32 +105,57 @@ output:
 
 ## ディレクトリ構成（生成後）
 
+◀◀◀ `target_cli` に応じたスキル配置先 ▶▶▶
+
+### Codex CLI (`target_cli: "codex"`)
+```
+プロジェクトルート/
+├── .codex/skills/                 ← スキルコマンド定義
+│   ├── koumei-request/SKILL.md
+│   ├── koumei-start/SKILL.md
+│   └── ...
+└── .agents/*/AGENTS.md            ← エージェント指示ファイル
+```
+
+### Claude Code (`target_cli: "claude"`)
+```
+プロジェクトルート/
+├── .claude/skills/                ← スキルコマンド定義
+│   ├── koumei-request/SKILL.md
+│   ├── koumei-start/SKILL.md
+│   └── ...
+└── .agents/*/CLAUDE.md            ← エージェント指示ファイル
+```
+
+### Antigravity CLI (`target_cli: "antigravity"`)
+```
+プロジェクトルート/
+├── .agents/skills/                ← スキルコマンド定義
+│   ├── koumei-request/SKILL.md
+│   ├── koumei-start/SKILL.md
+│   └── ...
+└── .agents/*/AGENTS.md            ← エージェント指示ファイル
+```
+
+### 共通ディレクトリ構成（全CLI共通）
 ```
 プロジェクトルート/
 ├── koumei.config.yaml              ← プロジェクト固有の設定
 ├── .agents/                        ← AI内部通信
 │   ├── TEAM.md                     ← チーム構成・ルール
 │   ├── commander/
-│   │   ├── AGENTS.md               ← 指揮者の役割定義
+│   │   ├── AGENTS.md / CLAUDE.md   ← 指揮者の役割定義
 │   │   ├── tasks/                  ← タスク定義書
 │   │   ├── requests/               ← 要件整理の指示書
 │   │   └── reports/                ← 各担当からの完了報告
 │   ├── tech-lead/
-│   │   ├── AGENTS.md
+│   │   ├── AGENTS.md / CLAUDE.md
 │   │   └── instructions/           ← commanderからの指示
 │   ├── reviewer/
-│   │   ├── AGENTS.md
+│   │   ├── AGENTS.md / CLAUDE.md
 │   │   └── instructions/
 │   ├── analyst/                    ← オプション
 │   └── ux-designer/                ← オプション
-├── .codex/skills/                 ← スキルコマンド定義
-│   ├── koumei-request/SKILL.md
-│   ├── koumei-start/SKILL.md
-│   ├── koumei-design-tech/SKILL.md
-│   ├── koumei-review/SKILL.md
-│   ├── koumei-implement/SKILL.md
-│   ├── koumei-status/SKILL.md
-│   └── ...（オプションロール分）
 └── docs-confidential/              ← 成果物（output.dir で設定）
     ├── task-001-analysis.md
     ├── task-001-design.md

@@ -51,7 +51,7 @@ roles:
 
 | キー | 型 | デフォルト | 説明 |
 |------|-----|-----------|------|
-| `target_cli` | string | `"codex"` | 生成先CLI。`"codex"` は `.codex/skills` と `.agents/*/AGENTS.md`、`"claude"` は `.claude/skills` と `.agents/*/CLAUDE.md` を生成 |
+| `target_cli` | string | `"codex"` | 生成先CLI。`"codex"` は `.codex/skills` + `AGENTS.md`、`"claude"` は `.claude/skills` + `CLAUDE.md`、`"antigravity"` は `.agents/skills` + `AGENTS.md` を生成 |
 
 ### 例
 
@@ -63,6 +63,12 @@ Claude Code 向けに従来形式で使う場合:
 
 ```yaml
 target_cli: "claude"
+```
+
+Antigravity CLI 向けに使う場合:
+
+```yaml
+target_cli: "antigravity"
 ```
 
 ## skill_prefix
@@ -84,7 +90,7 @@ target_cli: "claude"
 
 ## models
 
-各ロールで使用するAIモデル。`target_cli` に合わせて、Codex CLI では `gpt-5.3-codex` 等、Claude Code では `sonnet` / `opus` 等を指定します。
+各ロールで使用するAIモデル。`target_cli` に合わせて、Codex CLI では `gpt-5.3-codex` 等、Claude Code では `sonnet` 等、Antigravity CLI では `gemini-3.5-pro` 等を指定します。
 
 | キー | 型 | デフォルト | 説明 |
 |------|-----|-----------|------|

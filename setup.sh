@@ -450,10 +450,29 @@ run_wizard() {
   local default_bp='feature/task-{number}-{summary}'
   git_branch_pattern=$(prompt_input "ブランチ命名パターン" "$default_bp")
 
+  # --- ターゲットCLI選択 ---
+  echo ""
+  echo -e "${BLUE}━━━ ターゲットCLI選択 ━━━${NC}"
+  echo -e "  ${YELLOW}展開先のCLIツールを選択してください。${NC}"
+  echo -e "  ${YELLOW}スキルファイルの配置先やエージェント指示ファイル名が変わります。${NC}"
+  echo ""
+  echo -e "  1) Codex CLI       ${GREEN}(.codex/skills + AGENTS.md)${NC}"
+  echo -e "  2) Claude Code     ${GREEN}(.claude/skills + CLAUDE.md)${NC}"
+  echo -e "  3) Antigravity CLI ${GREEN}(.agents/skills + AGENTS.md)${NC}"
+  echo ""
+  local cli_choice
+  cli_choice=$(prompt_input "ターゲットCLI [1-3]" "1")
+  local wizard_target_cli wizard_default_model
+  case "$cli_choice" in
+    2) wizard_target_cli="claude";    wizard_default_model="sonnet" ;;
+    3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro" ;;
+    *) wizard_target_cli="codex";     wizard_default_model="gpt-5.3-codex" ;;
+  esac
+
   # --- スキルプレフィックス ---
   echo ""
   echo -e "${BLUE}━━━ スキルコマンド設定 ━━━${NC}"
-  echo -e "  ${YELLOW}Codex CLI / Claude Code のスキルコマンド接頭辞です。${NC}"
+  echo -e "  ${YELLOW}スキルコマンドの接頭辞です。${NC}"
   echo -e "  ${YELLOW}この接頭辞でスキルディレクトリ名とコマンド名が決まります。${NC}"
   echo -e "  例: 「koumei」→ /koumei-start, /koumei-run"
   echo -e "  例: 「km」→ /km-start, /km-run"
@@ -530,7 +549,7 @@ migration:
 roles:
 ${roles_yaml}
 # === スキルコマンド設定 ===
-target_cli: "codex"
+target_cli: "${wizard_target_cli}"
 skill_prefix: "${skill_prefix}"
 
 # === 指揮者設定 ===
@@ -539,11 +558,11 @@ commander:
 
 # === 各ロール モデル設定 ===
 models:
-  commander: "gpt-5.3-codex"
-  tech-lead: "gpt-5.3-codex"
-  reviewer: "gpt-5.3-codex"
-  analyst: "gpt-5.3-codex"
-  ux-designer: "gpt-5.3-codex"
+  commander: "${wizard_default_model}"
+  tech-lead: "${wizard_default_model}"
+  reviewer: "${wizard_default_model}"
+  analyst: "${wizard_default_model}"
+  ux-designer: "${wizard_default_model}"
 
 # === 技術スタック ===
 tech_stack:
@@ -809,6 +828,11 @@ load_config() {
       SKILLS_DIR=".claude/skills"
       AGENT_INSTRUCTIONS_FILENAME="CLAUDE.md"
       ;;
+    antigravity)
+      AI_CLI_NAME="Antigravity CLI"
+      SKILLS_DIR=".agents/skills"
+      AGENT_INSTRUCTIONS_FILENAME="AGENTS.md"
+      ;;
     *)
       log_warn "不明な target_cli '${TARGET_CLI}' のため codex として扱います。"
       TARGET_CLI="codex"
@@ -832,19 +856,29 @@ load_config() {
   MODEL_REVIEWER=$(yaml_get "models.reviewer")
   MODEL_ANALYST=$(yaml_get "models.analyst")
   MODEL_UX_DESIGNER=$(yaml_get "models.ux-designer")
-  if [[ "$TARGET_CLI" == "claude" ]]; then
-    MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
-    MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-opus}"
-    MODEL_REVIEWER="${MODEL_REVIEWER:-opus}"
-    MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
-    MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
-  else
-    MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
-    MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
-    MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
-    MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
-    MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
-  fi
+  case "$TARGET_CLI" in
+    claude)
+      MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-sonnet}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-sonnet}"
+      MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
+      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
+      ;;
+    antigravity)
+      MODEL_COMMANDER="${MODEL_COMMANDER:-gemini-3.5-pro}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gemini-3.5-pro}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-gemini-3.5-pro}"
+      MODEL_ANALYST="${MODEL_ANALYST:-gemini-3.5-flash}"
+      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gemini-3.5-flash}"
+      ;;
+    *)
+      MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
+      MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
+      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
+      ;;
+  esac
 
   # 技術スタック
   TECH_LANGUAGE=$(yaml_get "tech_stack.language")
@@ -1303,7 +1337,7 @@ do_clean() {
   # スキルディレクトリ内のkoumei-ai-team-framework生成ファイルを削除
   local prefix="${SKILL_PREFIX:-koumei}"
 
-  for skills_base in ".codex/skills" ".claude/skills"; do
+  for skills_base in ".codex/skills" ".claude/skills" ".agents/skills"; do
     [[ -d "$skills_base" ]] || continue
     for dir in "${skills_base}"/${prefix}-*; do
       [[ -d "$dir" ]] && rm -rf "$dir" && log_info "削除: $dir"

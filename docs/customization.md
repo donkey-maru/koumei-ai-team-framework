@@ -124,5 +124,6 @@ migration:
 
 展開後のファイル（`.agents/*/AGENTS.md`, `.codex/skills/*/SKILL.md`）を直接編集することも可能です。
 `target_cli: "claude"` の場合は `.agents/*/CLAUDE.md`, `.claude/skills/*/SKILL.md` が対象です。
+`target_cli: "antigravity"` の場合は `.agents/*/AGENTS.md`, `.agents/skills/*/SKILL.md` が対象です。
 
 **注意**: `setup.sh --update` を実行すると上書きされるため、カスタマイズは `custom_instructions` 経由で行うことを推奨します。
