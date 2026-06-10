@@ -1,7 +1,9 @@
 ---
 name: {{SKILL_PREFIX}}-design
 description: ux-designerとtech-leadを並列起動し、設計フェーズを一括実行するオーケストレーター。
+{{#IF_CLI claude}}
 allowed-tools: Read, Glob, Grep, Write, Bash, Edit, Task
+{{/IF_CLI}}
 ---
 
 # 設計フェーズ オーケストレーター

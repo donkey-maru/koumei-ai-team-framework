@@ -1,7 +1,9 @@
 ---
 name: {{SKILL_PREFIX}}-request
 description: {{COMMANDER_NAME}}として、ユーザーと対話しながら要件を整理し、タスク指示書を作成する。/{{SKILL_PREFIX}}-start の前段ステップ。
+{{#IF_CLI claude}}
 allowed-tools: Read, Write, Glob, Grep, Bash, Edit, AskUserQuestion
+{{/IF_CLI}}
 ---
 
 # {{COMMANDER_NAME}} - 要件整理・指示書作成

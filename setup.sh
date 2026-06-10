@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 CONFIG_FILE="koumei.config.yaml"
 VERSION="1.0.0"
-DEFAULT_TARGET_CLI="codex"
+DEFAULT_TARGET_CLI="claude"
 
 # --- カラー出力 ---
 RED='\033[0;31m'
@@ -38,6 +38,7 @@ for arg in "$@"; do
   case "$arg" in
     --init)    MODE="init" ;;
     --roles)   MODE="roles" ;;
+    --cli)     MODE="cli" ;;
     --update)  MODE="update" ;;
     --clean)   MODE="clean" ;;
     --dry-run) DRY_RUN=true ;;
@@ -50,6 +51,7 @@ for arg in "$@"; do
       echo "  (none)      Initial setup (auto-runs wizard if no config found)"
       echo "  --init      Run config wizard (create/overwrite koumei.config.yaml)"
       echo "  --roles     Change role composition only"
+      echo "  --cli       Change target CLI only (codex/claude/antigravity)"
       echo "  --update    Re-generate from config (preserves deliverables)"
       echo "  --clean     Remove all generated files"
       echo "  --dry-run   Preview without creating files"
@@ -456,17 +458,17 @@ run_wizard() {
   echo -e "  ${YELLOW}展開先のCLIツールを選択してください。${NC}"
   echo -e "  ${YELLOW}スキルファイルの配置先やエージェント指示ファイル名が変わります。${NC}"
   echo ""
-  echo -e "  1) Codex CLI       ${GREEN}(.codex/skills + AGENTS.md)${NC}"
-  echo -e "  2) Claude Code     ${GREEN}(.claude/skills + CLAUDE.md)${NC}"
+  echo -e "  1) Claude Code     ${GREEN}(.claude/skills + CLAUDE.md)${NC}"
+  echo -e "  2) Codex CLI       ${GREEN}(.codex/skills + AGENTS.md)${NC}"
   echo -e "  3) Antigravity CLI ${GREEN}(.agents/skills + AGENTS.md)${NC}"
   echo ""
   local cli_choice
   cli_choice=$(prompt_input "ターゲットCLI [1-3]" "1")
   local wizard_target_cli wizard_default_model
   case "$cli_choice" in
-    2) wizard_target_cli="claude";    wizard_default_model="sonnet" ;;
+    2) wizard_target_cli="codex";       wizard_default_model="gpt-5.3-codex" ;;
     3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro" ;;
-    *) wizard_target_cli="codex";     wizard_default_model="gpt-5.3-codex" ;;
+    *) wizard_target_cli="claude";      wizard_default_model="sonnet" ;;
   esac
 
   # --- スキルプレフィックス ---
@@ -643,6 +645,122 @@ run_roles_wizard() {
   echo ""
   log_step "変更を反映するためにセットアップを実行します..."
   echo ""
+}
+
+# CLI ラベルを返す（codex/claude/antigravity）
+cli_display_label() {
+  case "$1" in
+    codex)       echo "Codex CLI (.codex/skills + AGENTS.md)" ;;
+    claude)      echo "Claude Code (.claude/skills + CLAUDE.md)" ;;
+    antigravity) echo "Antigravity CLI (.agents/skills + AGENTS.md)" ;;
+    *)           echo "$1" ;;
+  esac
+}
+
+# CLI 変更ウィザード（既存config の target_cli だけ書き換え）
+# 旧CLI用のスキル/エージェント指示ファイルは PREVIOUS_TARGET_CLI に記録し、
+# do_setup の前に cleanup_previous_cli で削除する。
+PREVIOUS_TARGET_CLI=""
+run_cli_wizard() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "koumei.config.yaml が見つかりません。先に setup.sh を実行してください。"
+    exit 1
+  fi
+
+  echo ""
+  echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
+  echo -e "${BLUE}║   対象CLIの変更                          ║${NC}"
+  echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
+
+  # 現在のCLIを表示
+  local current_cli
+  current_cli=$(yaml_get "target_cli")
+  current_cli="${current_cli:-$DEFAULT_TARGET_CLI}"
+  echo ""
+  echo -e "現在の対象CLI: ${GREEN}$(cli_display_label "$current_cli")${NC}"
+  echo ""
+
+  echo -e "  1) Claude Code     ${GREEN}(.claude/skills + CLAUDE.md)${NC}"
+  echo -e "  2) Codex CLI       ${GREEN}(.codex/skills + AGENTS.md)${NC}"
+  echo -e "  3) Antigravity CLI ${GREEN}(.agents/skills + AGENTS.md)${NC}"
+  echo ""
+
+  local cli_choice new_cli
+  cli_choice=$(prompt_input "新しい対象CLI [1-3]" "1")
+  case "$cli_choice" in
+    2) new_cli="codex" ;;
+    3) new_cli="antigravity" ;;
+    *) new_cli="claude" ;;
+  esac
+
+  if [[ "$new_cli" == "$current_cli" ]]; then
+    log_info "対象CLIに変更はありません: ${new_cli}"
+    PREVIOUS_TARGET_CLI=""
+    return
+  fi
+
+  # target_cli の値を書き換え
+  perl -i -pe 's/^target_cli:\s*.*$/target_cli: "'"$new_cli"'"/' "$CONFIG_FILE"
+
+  PREVIOUS_TARGET_CLI="$current_cli"
+  log_info "対象CLIを更新しました: ${current_cli} → ${new_cli}"
+  echo ""
+  log_step "旧CLI用のファイルを整理し、新CLIで再展開します..."
+  echo ""
+}
+
+# 旧CLI用のスキル/エージェント指示ファイルを削除
+# 引数: $1 = 旧CLI ("codex"|"claude"|"antigravity")
+cleanup_previous_cli() {
+  local previous_cli="$1"
+  [[ -z "$previous_cli" ]] && return
+
+  local previous_skills_dir previous_agent_filename
+  case "$previous_cli" in
+    codex)       previous_skills_dir=".codex/skills";  previous_agent_filename="AGENTS.md" ;;
+    claude)      previous_skills_dir=".claude/skills"; previous_agent_filename="CLAUDE.md" ;;
+    antigravity) previous_skills_dir=".agents/skills"; previous_agent_filename="AGENTS.md" ;;
+    *)           return ;;
+  esac
+
+  local prefix="${SKILL_PREFIX:-koumei}"
+
+  # 旧CLI用のスキルディレクトリを削除（新CLIと共有する .agents/skills は対象外）
+  if [[ "$previous_skills_dir" != "$SKILLS_DIR" && -d "$previous_skills_dir" ]]; then
+    local removed_any=false
+    for dir in "${previous_skills_dir}"/${prefix}-*; do
+      if [[ -d "$dir" ]]; then
+        if $DRY_RUN; then
+          log_info "[DRY-RUN] Would remove: $dir"
+        else
+          rm -rf "$dir"
+          log_info "削除: $dir"
+        fi
+        removed_any=true
+      fi
+    done
+    # スキルディレクトリが空になったら削除
+    if ! $DRY_RUN && $removed_any && [[ -d "$previous_skills_dir" ]] && [[ -z "$(ls -A "$previous_skills_dir" 2>/dev/null)" ]]; then
+      rmdir "$previous_skills_dir" 2>/dev/null || true
+    fi
+  fi
+
+  # 旧CLI用のエージェント指示ファイル名が新CLIと異なる場合は削除（do_setup で新ファイル名のものを生成）
+  if [[ "$previous_agent_filename" != "$AGENT_INSTRUCTIONS_FILENAME" ]]; then
+    for role_dir in commander tech-lead reviewer analyst ux-designer; do
+      local old_file=".agents/${role_dir}/${previous_agent_filename}"
+      if [[ -f "$old_file" ]]; then
+        if is_git_tracked "$old_file"; then
+          log_warn "スキップ: ${old_file}（Git管理下のため手動で削除してください）"
+        elif $DRY_RUN; then
+          log_info "[DRY-RUN] Would remove: $old_file"
+        else
+          rm -f "$old_file"
+          log_info "削除: $old_file"
+        fi
+      fi
+    done
+  fi
 }
 
 # ============================================================
@@ -834,11 +952,11 @@ load_config() {
       AGENT_INSTRUCTIONS_FILENAME="AGENTS.md"
       ;;
     *)
-      log_warn "不明な target_cli '${TARGET_CLI}' のため codex として扱います。"
-      TARGET_CLI="codex"
-      AI_CLI_NAME="Codex CLI"
-      SKILLS_DIR=".codex/skills"
-      AGENT_INSTRUCTIONS_FILENAME="AGENTS.md"
+      log_warn "不明な target_cli '${TARGET_CLI}' のため claude として扱います。"
+      TARGET_CLI="claude"
+      AI_CLI_NAME="Claude Code"
+      SKILLS_DIR=".claude/skills"
+      AGENT_INSTRUCTIONS_FILENAME="CLAUDE.md"
       ;;
   esac
 
@@ -857,12 +975,12 @@ load_config() {
   MODEL_ANALYST=$(yaml_get "models.analyst")
   MODEL_UX_DESIGNER=$(yaml_get "models.ux-designer")
   case "$TARGET_CLI" in
-    claude)
-      MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-sonnet}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-sonnet}"
-      MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
-      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
+    codex)
+      MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
+      MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
+      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
       ;;
     antigravity)
       MODEL_COMMANDER="${MODEL_COMMANDER:-gemini-3.5-pro}"
@@ -872,11 +990,11 @@ load_config() {
       MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gemini-3.5-flash}"
       ;;
     *)
-      MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
-      MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
-      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
+      MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-sonnet}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-sonnet}"
+      MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
+      MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
       ;;
   esac
 
@@ -1162,6 +1280,7 @@ process_conditions() {
     my $migration = $ARGV[1] eq "true" ? 1 : 0;
     my $has_develop = length($ARGV[2]) > 0 ? 1 : 0;
     my $has_check = length($ARGV[3]) > 0 ? 1 : 0;
+    my $target_cli = $ARGV[5] // "";
 
     open(my $fh, "<", $ARGV[4]) or die "Cannot open: $!";
     my @lines = <$fh>;
@@ -1245,8 +1364,19 @@ process_conditions() {
         next;
       }
 
+      # {{#IF_CLI <cli>}} — target_cli が一致するときだけ出力
+      if ($line =~ /\{\{#IF_CLI\s+(\S+)\}\}/) {
+        my $cli = $1;
+        if (@skip_stack && $skip_stack[-1]) {
+          push @skip_stack, 1;
+        } else {
+          push @skip_stack, ($target_cli eq $cli) ? 0 : 1;
+        }
+        next;
+      }
+
       # Closing tags
-      if ($line =~ /\{\{\/(IF_ROLE|IF_NO_ROLE|IF_MIGRATION|IF_DEVELOP_BRANCH|IF_NO_DEVELOP_BRANCH|IF_CHECK_COMMAND|IF_NO_CHECK_COMMAND)\}\}/) {
+      if ($line =~ /\{\{\/(IF_ROLE|IF_NO_ROLE|IF_MIGRATION|IF_DEVELOP_BRANCH|IF_NO_DEVELOP_BRANCH|IF_CHECK_COMMAND|IF_NO_CHECK_COMMAND|IF_CLI)\}\}/) {
         pop @skip_stack if @skip_stack;
         next;
       }
@@ -1258,7 +1388,7 @@ process_conditions() {
     }
 
     print join("\n", @result) . "\n";
-  ' "$roles_csv" "$MIGRATION_ENABLED" "$GIT_DEVELOP_BRANCH" "$CHECK_COMMAND" "$tmpfile_cond")
+  ' "$roles_csv" "$MIGRATION_ENABLED" "$GIT_DEVELOP_BRANCH" "$CHECK_COMMAND" "$tmpfile_cond" "$TARGET_CLI")
 
   rm -f "$tmpfile_cond"
   echo "$content"
@@ -1512,6 +1642,16 @@ if [[ "$MODE" == "roles" ]]; then
   load_config  # 既存config読み込み（yaml_get_array 用）
   run_roles_wizard
   load_config  # 更新されたconfigを再読み込み
+  do_setup
+  exit 0
+fi
+
+# --cli: 対象CLI変更のみ
+if [[ "$MODE" == "cli" ]]; then
+  load_config            # 既存config読み込み（旧CLI情報を表示するため）
+  run_cli_wizard         # target_cli を書き換え、PREVIOUS_TARGET_CLI を記録
+  load_config            # 新CLIで SKILLS_DIR / AGENT_INSTRUCTIONS_FILENAME を確定
+  cleanup_previous_cli "$PREVIOUS_TARGET_CLI"
   do_setup
   exit 0
 fi
