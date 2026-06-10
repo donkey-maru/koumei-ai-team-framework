@@ -1,7 +1,9 @@
 ---
 name: {{SKILL_PREFIX}}-review
 description: reviewer（品質レビュー担当）として成果物またはコードのレビューを実行する。
+{{#IF_CLI claude}}
 allowed-tools: Read, Glob, Grep, Write, Bash, Edit
+{{/IF_CLI}}
 ---
 
 # 品質レビュー担当 (Reviewer) - レビュー実行

@@ -1,7 +1,7 @@
 # koumei-ai-team-framework
 
-Codex CLI / Claude Code / Antigravity CLI 対応のマルチエージェント開発フローシステム。
-`target_cli` で展開先を切り替えられます（`"codex"` / `"claude"` / `"antigravity"`）。
+Claude Code / Codex CLI / Antigravity CLI 対応のマルチエージェント開発フローシステム。
+`target_cli` で展開先を切り替えられます（`"claude"` / `"codex"` / `"antigravity"`）。デフォルトは `claude`。
 
 複数のAIエージェントロール（指揮者・技術リード・レビュアー等）が協調し、要件整理→タスク定義→分析→設計→レビュー→実装の段階的開発フローを実現します。
 
@@ -33,7 +33,7 @@ cd /path/to/my-project
 
 `koumei.config.yaml` がなければ**対話式ウィザード**が自動起動し、設定ファイルを生成します。
 
-### 3. Codex CLI でスキルコマンドを実行
+### 3. Claude Code でスキルコマンドを実行
 
 ```
 /koumei-request "GA4アナリティクス計測設定"
@@ -47,6 +47,7 @@ cd /path/to/my-project
 setup.sh              # 初回セットアップ（config未存在時はウィザード起動）
 setup.sh --init        # ウィザードを明示的に実行（config作成/上書き）
 setup.sh --roles       # ロール構成のみ変更（対話式）
+setup.sh --cli         # 対象CLIのみ変更（codex/claude/antigravity、対話式）
 setup.sh --update      # 設定変更後の再展開（成果物は保持）
 setup.sh --clean       # 展開済みファイルを削除
 setup.sh --dry-run     # 実際にファイルを作成せずプレビュー
@@ -107,6 +108,16 @@ output:
 
 ◀◀◀ `target_cli` に応じたスキル配置先 ▶▶▶
 
+### Claude Code (`target_cli: "claude"`) — デフォルト
+```
+プロジェクトルート/
+├── .claude/skills/                ← スキルコマンド定義
+│   ├── koumei-request/SKILL.md
+│   ├── koumei-start/SKILL.md
+│   └── ...
+└── .agents/*/CLAUDE.md            ← エージェント指示ファイル
+```
+
 ### Codex CLI (`target_cli: "codex"`)
 ```
 プロジェクトルート/
@@ -115,16 +126,6 @@ output:
 │   ├── koumei-start/SKILL.md
 │   └── ...
 └── .agents/*/AGENTS.md            ← エージェント指示ファイル
-```
-
-### Claude Code (`target_cli: "claude"`)
-```
-プロジェクトルート/
-├── .claude/skills/                ← スキルコマンド定義
-│   ├── koumei-request/SKILL.md
-│   ├── koumei-start/SKILL.md
-│   └── ...
-└── .agents/*/CLAUDE.md            ← エージェント指示ファイル
 ```
 
 ### Antigravity CLI (`target_cli: "antigravity"`)

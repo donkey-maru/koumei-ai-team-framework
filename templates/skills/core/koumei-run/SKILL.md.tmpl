@@ -1,7 +1,9 @@
 ---
 name: {{SKILL_PREFIX}}-run
 description: /{{SKILL_PREFIX}}-request で作成された要件を元に、設計→レビュー→実装→コードレビューを自動で連鎖実行する。PR作成手前で停止。
+{{#IF_CLI claude}}
 allowed-tools: Read, Write, Glob, Grep, Bash, Edit, Task
+{{/IF_CLI}}
 ---
 
 # 自動連鎖実行オーケストレーター

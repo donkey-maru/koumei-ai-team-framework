@@ -30,8 +30,8 @@ roles:
   # - ux-designer                    # UI/UX設計担当
 
 # === スキルコマンド設定 ===
-# 対象CLI: "codex"（.codex/skills + AGENTS.md）または "claude"（.claude/skills + CLAUDE.md）または "antigravity"（.agents/skills + AGENTS.md）
-target_cli: "codex"
+# 対象CLI: "claude"（.claude/skills + CLAUDE.md）または "codex"（.codex/skills + AGENTS.md）または "antigravity"（.agents/skills + AGENTS.md）
+target_cli: "claude"
 # スキルコマンドの接頭辞（例: /koumei-start, /km-start, /dev-start）
 skill_prefix: "koumei"
 
@@ -40,13 +40,13 @@ commander:
   name: "Commander"                  # コードネーム（例: "諸葛孔明", "Archimedes"）
 
 # === 各ロール モデル設定 ===
-# Codex CLI では gpt-5.3-codex 等、Claude Code では sonnet 等、Antigravity CLI では gemini-3.5-pro 等、利用するCLIに合わせて指定
+# Claude Code では sonnet 等、Codex CLI では gpt-5.3-codex 等、Antigravity CLI では gemini-3.5-pro 等、利用するCLIに合わせて指定
 models:
-  commander: "gpt-5.3-codex"
-  tech-lead: "gpt-5.3-codex"
-  reviewer: "gpt-5.3-codex"
-  analyst: "gpt-5.3-codex"
-  ux-designer: "gpt-5.3-codex"
+  commander: "sonnet"
+  tech-lead: "sonnet"
+  reviewer: "sonnet"
+  analyst: "sonnet"
+  ux-designer: "sonnet"
 
 # === 技術スタック ===
 tech_stack:
