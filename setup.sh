@@ -425,7 +425,7 @@ run_wizard() {
   echo -e "  ${YELLOW}例: 「docs」「docs-confidential」「documents」${NC}"
   echo ""
   local output_dir output_instructions
-  output_dir=$(prompt_input "出力先ディレクトリ（プロジェクトルートからの相対パス）" "docs")
+  output_dir=$(prompt_input "出力先ディレクトリ（プロジェクトルートからの相対パス）" "docs-official")
   echo -e "  ${YELLOW}追加指示: 出力フォーマットの指定等（例: 「既存の.mdファイルを参考にすること」）${NC}"
   output_instructions=$(prompt_input "追加指示（なければ空Enter）" "")
 
@@ -1022,7 +1022,7 @@ load_config() {
 
   # 成果物出力設定
   OUTPUT_DIR=$(yaml_get "output.dir")
-  OUTPUT_DIR="${OUTPUT_DIR:-docs}"
+  OUTPUT_DIR="${OUTPUT_DIR:-docs-official}"
   OUTPUT_FORMAT=$(yaml_get "output.format")
   OUTPUT_FORMAT="${OUTPUT_FORMAT:-md}"
   OUTPUT_INSTRUCTIONS=$(yaml_get_multiline "output" "instructions")

@@ -73,8 +73,8 @@ git:
 # AIエージェントが生成する設計書・レビュー等の出力先
 # プロジェクトの AGENTS.md や CLAUDE.md に出力先の指示がある場合はそちらが優先される
 output:
-  dir: "docs"                            # 成果物の出力ディレクトリ（プロジェクトルート相対）
-                                          # 例: "docs", "docs-confidential", "docs/designs"
+  dir: "docs-official"                    # 成果物の出力ディレクトリ（プロジェクトルート相対）
+                                          # 例: "docs-official", "docs-confidential", "docs/designs"
   format: "md"                            # 出力形式（現在は md のみ）
   instructions: |                         # 成果物に関する追加指示（任意）
     # 例:
