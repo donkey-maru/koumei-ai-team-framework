@@ -51,7 +51,7 @@ roles:
 
 | キー | 型 | デフォルト | 説明 |
 |------|-----|-----------|------|
-| `target_cli` | string | `"codex"` | 生成先CLI。`"codex"` は `.codex/skills` + `AGENTS.md`、`"claude"` は `.claude/skills` + `CLAUDE.md`、`"antigravity"` は `.agents/skills` + `AGENTS.md` を生成 |
+| `target_cli` | string | `"claude"` | 生成先CLI。`"claude"` は `.claude/skills` + `CLAUDE.md`、`"codex"` は `.codex/skills` + `AGENTS.md`、`"antigravity"` は `.agents/skills` + `AGENTS.md` を生成 |
 
 ### 例
 
@@ -140,7 +140,7 @@ AIエージェントが生成する成果物（設計書・レビュー結果等
 
 1. **プロジェクトの AGENTS.md / CLAUDE.md** に出力先の記述がある場合 → 最優先
 2. **koumei.config.yaml** の `output.dir` 設定
-3. **デフォルト**（`docs/`）
+3. **デフォルト**（`docs-official/`）
 
 ### 例
 

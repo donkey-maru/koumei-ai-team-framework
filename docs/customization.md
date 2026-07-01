@@ -127,3 +127,101 @@ migration:
 `target_cli: "antigravity"` の場合は `.agents/*/AGENTS.md`, `.agents/skills/*/SKILL.md` が対象です。
 
 **注意**: `setup.sh --update` を実行すると上書きされるため、カスタマイズは `custom_instructions` 経由で行うことを推奨します。
+
+## アナリティクスイベント CI チェックの導入
+
+PR 時にアナリティクスイベントの実装漏れを自動検出する CI スクリプトを導入できます。
+このスクリプトは koumei に依存しないため、他の AI ハーネスフレームワークを使用するプロジェクトでも利用できます。
+
+### 導入手順
+
+**1. スクリプトをコピー**
+
+```bash
+mkdir -p .ci
+cp /path/to/koumei-ai-team-framework/examples/ci/check-analytics-events.sh .ci/
+chmod +x .ci/check-analytics-events.sh
+```
+
+**2. スクリプトの設定を編集**
+
+`.ci/check-analytics-events.sh` の設定セクションをプロジェクトに合わせて変更:
+
+```bash
+CONSTANTS_FILE="lib/analytics/constants.ts"   # 定数ファイルのパス
+ANALYTICS_OBJECT_NAME="ANALYTICS_EVENTS"      # ソースコード内の使用形式のオブジェクト名
+BASE_BRANCH="main"                            # 比較ベースブランチ
+```
+
+定数ファイルの形式に合わせて抽出パターンも選択してください（スクリプト内のコメントを参照）。
+
+**3. アナリティクスルールドキュメントをコピー**
+
+```bash
+cp /path/to/koumei-ai-team-framework/examples/docs/analytics-rules.md <プロジェクトの任意のパス>
+# 例: docs/analytics-rules.md、docs-official/analytics-rules.md など
+```
+
+配置先はプロジェクトのドキュメントディレクトリに合わせてください（`docs/` に限りません）。
+このファイルが存在することで、koumei の reviewer に限らずどの AI ツールでも
+「何を確認すべきか」を参照できます。
+
+配置先を変更した場合は、`.ci/check-analytics-events.sh` の `RULES_DOC_PATH` も合わせて更新してください:
+
+```bash
+RULES_DOC_PATH="docs-official/analytics-rules.md"  # 実際の配置先に変更
+```
+
+CI 失敗メッセージはこのパスを参照先として出力します。
+
+**4. package.json にスクリプトを追加**
+
+```json
+{
+  "scripts": {
+    "check:analytics": "bash .ci/check-analytics-events.sh"
+  }
+}
+```
+
+**5. CI に組み込む**
+
+Bitbucket Pipelines の例:
+
+```yaml
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Analytics Check
+          script:
+            - npm run check:analytics
+```
+
+GitHub Actions の例:
+
+```yaml
+- name: Analytics Check
+  run: npm run check:analytics
+  env:
+    BASE_BRANCH: ${{ github.base_ref }}
+```
+
+### koumei reviewer との連携
+
+`koumei.config.yaml` の `custom_instructions.reviewer` に以下を追加すると、
+AI reviewer が CI では検出できないケース（定数も `track()` も追加しないままボタンだけ追加した場合）を補完します:
+
+```yaml
+custom_instructions:
+  reviewer: |
+    - アナリティクスカバレッジ: docs/analytics-rules.md を参照し、
+      新しいユーザー操作に track() が実装されているか確認すること
+```
+
+### 検出範囲
+
+| ケース | CI | reviewer |
+|--------|-----|----------|
+| 定数を追加したのに `track()` を書き忘れた | ✅ FAILED でブロック | ✅ |
+| ボタンを追加したのに定数も `track()` も書かなかった | 検出不可 | ✅ |
