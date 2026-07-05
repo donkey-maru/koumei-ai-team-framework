@@ -4,7 +4,9 @@
 # ============================================================
 # 使い方:
 #   ./setup.sh                    # 初回セットアップ
-#   ./setup.sh --update           # 設定変更後の再展開（成果物は保持）
+#   ./setup.sh --update           # 最新テンプレで再展開（configは変更しない。成果物は保持）
+#                                  # ※新しい設定項目が必要な場合は再生成せず --reconfig を案内する
+#   ./setup.sh --reconfig         # 既存プロジェクトの設定を見直す（--init のエイリアス）
 #   ./setup.sh --clean            # 展開済みファイルを削除
 #   ./setup.sh --dry-run          # 実際にファイルを作成せずプレビュー
 # ============================================================
@@ -36,12 +38,13 @@ DRY_RUN=false
 
 for arg in "$@"; do
   case "$arg" in
-    --init)    MODE="init" ;;
-    --roles)   MODE="roles" ;;
-    --cli)     MODE="cli" ;;
-    --update)  MODE="update" ;;
-    --clean)   MODE="clean" ;;
-    --dry-run) DRY_RUN=true ;;
+    --init)      MODE="init" ;;
+    --reconfig)  MODE="init" ;;
+    --roles)     MODE="roles" ;;
+    --cli)       MODE="cli" ;;
+    --update)    MODE="update" ;;
+    --clean)     MODE="clean" ;;
+    --dry-run)   DRY_RUN=true ;;
     --help|-h)
       echo "koumei-ai-team-framework setup v${VERSION}"
       echo ""
@@ -50,9 +53,13 @@ for arg in "$@"; do
       echo "Options:"
       echo "  (none)      Initial setup (auto-runs wizard if no config found)"
       echo "  --init      Run config wizard (create/overwrite koumei.config.yaml)"
+      echo "  --reconfig  Revisit settings on an existing project (alias for --init)"
       echo "  --roles     Change role composition only"
       echo "  --cli       Change target CLI only (codex/claude/antigravity)"
-      echo "  --update    Re-generate from config (preserves deliverables)"
+      echo "  --update    Re-generate from the current config using the latest templates."
+      echo "              Does not modify koumei.config.yaml. If the framework has added"
+      echo "              config keys your project doesn't have yet, this stops and tells"
+      echo "              you to run --reconfig instead of silently skipping them."
       echo "  --clean     Remove all generated files"
       echo "  --dry-run   Preview without creating files"
       echo "  --help      Show this help"
@@ -901,6 +908,29 @@ yaml_get_multiline() {
   fi
 }
 
+# キーが存在するかどうかだけを判定（値の中身は見ない。空文字の正規設定と「未設定」を区別するため）
+# ネストされたキーは "." で区切る（例: "tech_stack.check_command"）
+yaml_has_key() {
+  local key="$1"
+  local file="$2"
+
+  if [[ "$key" != *.* ]]; then
+    grep -qE "^${key}:" "$file"
+    return
+  fi
+
+  local parent="${key%%.*}"
+  local child="${key#*.}"
+
+  awk -v parent="$parent" -v child="$child" '
+    BEGIN { in_parent = 0; found = 0 }
+    $0 ~ "^"parent":" { in_parent = 1; next }
+    in_parent && /^[a-zA-Z_]/ { in_parent = 0 }
+    in_parent && $0 ~ "^[[:space:]]+"child":" { found = 1; exit }
+    END { exit !found }
+  ' "$file"
+}
+
 # ============================================================
 # 設定の読み込み
 # ============================================================
@@ -1086,6 +1116,74 @@ load_config() {
   log_info "対象CLI: ${AI_CLI_NAME}"
   log_info "ロール: ${ROLES[*]}"
   log_info "スキルプレフィックス: ${SKILL_PREFIX}"
+}
+
+# ============================================================
+# config差分検知（--update 用）
+# ============================================================
+# koumei.config.example.yaml にあってプロジェクトの koumei.config.yaml に
+# 無いキーを検知する。値は比較しない（空文字は正規の設定であり「未設定」ではないため、
+# 値比較だとユーザーの意図的なカスタマイズを誤検知してしまう）。
+# ロール依存のキー（analyst/ux-designer関連）は、該当ロールが有効な場合のみチェックする。
+#
+# 既知の限界: キーが存在していても「使われ方の意味」が変わったケースは検知できない。
+# その場合は CHANGELOG での明示的な告知に頼る（今回はスコープ外として保留）。
+
+# 常に存在すべきキー
+CONFIG_REQUIRED_KEYS=(
+  "project.name" "project.description" "project.path"
+  "migration.enabled" "migration.source_path" "migration.source_framework" "migration.target_framework"
+  "roles"
+  "target_cli" "skill_prefix"
+  "commander.name"
+  "models.commander" "models.tech-lead" "models.reviewer"
+  "tech_stack.language" "tech_stack.framework" "tech_stack.ui_library" "tech_stack.styling"
+  "tech_stack.database" "tech_stack.testing"
+  "tech_stack.build_command" "tech_stack.test_command" "tech_stack.dev_command" "tech_stack.check_command"
+  "git.main_branch" "git.develop_branch" "git.feature_prefix" "git.branch_pattern"
+  "output.dir" "output.format" "output.instructions"
+  "custom_instructions.commander" "custom_instructions.tech-lead" "custom_instructions.reviewer"
+  "reference_docs"
+)
+
+# ロールが有効な場合のみ存在すべきキー（"ロール名:キー"）
+CONFIG_ROLE_CONDITIONAL_KEYS=(
+  "analyst:models.analyst"
+  "analyst:custom_instructions.analyst"
+  "ux-designer:models.ux-designer"
+  "ux-designer:custom_instructions.ux-designer"
+)
+
+# 差分がなければ0、差分があれば1を返し、案内メッセージを表示する
+check_config_drift() {
+  local missing=()
+
+  for key in "${CONFIG_REQUIRED_KEYS[@]}"; do
+    yaml_has_key "$key" "$CONFIG_FILE" || missing+=("$key")
+  done
+
+  for entry in "${CONFIG_ROLE_CONDITIONAL_KEYS[@]}"; do
+    local role="${entry%%:*}"
+    local key="${entry#*:}"
+    if has_role "$role"; then
+      yaml_has_key "$key" "$CONFIG_FILE" || missing+=("$key")
+    fi
+  done
+
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo ""
+  log_warn "このフレームワークの更新には、あなたの koumei.config.yaml に無い新しい設定項目が含まれています:"
+  for key in "${missing[@]}"; do
+    echo "  - ${key}"
+  done
+  echo ""
+  log_info "config自体の見直しが必要なため、再生成はスキップしました。"
+  log_info "次を実行してください: ${SCRIPT_DIR}/setup.sh --reconfig"
+  echo ""
+  return 1
 }
 
 # ============================================================
@@ -1652,6 +1750,16 @@ if [[ "$MODE" == "cli" ]]; then
   run_cli_wizard         # target_cli を書き換え、PREVIOUS_TARGET_CLI を記録
   load_config            # 新CLIで SKILLS_DIR / AGENT_INSTRUCTIONS_FILENAME を確定
   cleanup_previous_cli "$PREVIOUS_TARGET_CLI"
+  do_setup
+  exit 0
+fi
+
+# --update: 差分検知してから再生成（configは変更しない）
+if [[ "$MODE" == "update" ]]; then
+  load_config
+  if ! check_config_drift; then
+    exit 1
+  fi
   do_setup
   exit 0
 fi
