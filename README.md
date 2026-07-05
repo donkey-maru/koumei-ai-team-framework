@@ -46,9 +46,12 @@ cd /path/to/my-project
 ```bash
 setup.sh              # 初回セットアップ（config未存在時はウィザード起動）
 setup.sh --init        # ウィザードを明示的に実行（config作成/上書き）
+setup.sh --reconfig    # 既存プロジェクトの設定を見直す（--init のエイリアス）
 setup.sh --roles       # ロール構成のみ変更（対話式）
 setup.sh --cli         # 対象CLIのみ変更（codex/claude/antigravity、対話式）
-setup.sh --update      # 設定変更後の再展開（成果物は保持）
+setup.sh --update      # 最新テンプレで再展開（configは変更しない・成果物は保持）
+                        # フレームワーク側に新しい設定項目が追加されている場合は
+                        # 再生成せず --reconfig の実行を案内する
 setup.sh --clean       # 展開済みファイルを削除
 setup.sh --dry-run     # 実際にファイルを作成せずプレビュー
 ```
