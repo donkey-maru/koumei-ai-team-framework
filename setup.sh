@@ -1128,6 +1128,10 @@ load_config() {
 #
 # 既知の限界: キーが存在していても「使われ方の意味」が変わったケースは検知できない。
 # その場合は CHANGELOG での明示的な告知に頼る（今回はスコープ外として保留）。
+#
+# 注意: ここに載せるのは実際に load_config() が yaml_get 等で読んでいるキーのみ。
+# example にあるだけで未使用のキー（例: git.feature_prefix, tech_stack.dev_command）を
+# 含めると、何も壊れないのに警告が出るノイズになる。
 
 # 常に存在すべきキー
 CONFIG_REQUIRED_KEYS=(
@@ -1139,8 +1143,8 @@ CONFIG_REQUIRED_KEYS=(
   "models.commander" "models.tech-lead" "models.reviewer"
   "tech_stack.language" "tech_stack.framework" "tech_stack.ui_library" "tech_stack.styling"
   "tech_stack.database" "tech_stack.testing"
-  "tech_stack.build_command" "tech_stack.test_command" "tech_stack.dev_command" "tech_stack.check_command"
-  "git.main_branch" "git.develop_branch" "git.feature_prefix" "git.branch_pattern"
+  "tech_stack.build_command" "tech_stack.test_command" "tech_stack.check_command"
+  "git.main_branch" "git.develop_branch" "git.branch_pattern"
   "output.dir" "output.format" "output.instructions"
   "custom_instructions.commander" "custom_instructions.tech-lead" "custom_instructions.reviewer"
   "reference_docs"
