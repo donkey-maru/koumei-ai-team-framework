@@ -40,11 +40,13 @@ commander:
   name: "Commander"                  # コードネーム（例: "諸葛孔明", "Archimedes"）
 
 # === 各ロール モデル設定 ===
-# Claude Code では sonnet 等、Codex CLI では gpt-5.3-codex 等、Antigravity CLI では gemini-3.5-pro 等、利用するCLIに合わせて指定
+# Claude Code では sonnet/opus 等、Codex CLI では gpt-5.3-codex 等、Antigravity CLI では gemini-3.5-pro 等、利用するCLIに合わせて指定
+# tech-lead（設計・実装）と reviewer（品質ゲート）は特に負荷の高い推論を行うため、
+# デフォルトで上位モデル（Claude Code なら opus）を割り当てている
 models:
   commander: "sonnet"
-  tech-lead: "sonnet"
-  reviewer: "sonnet"
+  tech-lead: "opus"
+  reviewer: "opus"
   analyst: "sonnet"
   ux-designer: "sonnet"
 

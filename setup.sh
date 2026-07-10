@@ -471,11 +471,13 @@ run_wizard() {
   echo ""
   local cli_choice
   cli_choice=$(prompt_input "ターゲットCLI [1-3]" "1")
-  local wizard_target_cli wizard_default_model
+  # wizard_default_model: commander/analyst/ux-designer 用
+  # wizard_lead_model: tech-lead/reviewer 用（設計・レビューは負荷が高いため上位モデルを既定にする）
+  local wizard_target_cli wizard_default_model wizard_lead_model
   case "$cli_choice" in
-    2) wizard_target_cli="codex";       wizard_default_model="gpt-5.3-codex" ;;
-    3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro" ;;
-    *) wizard_target_cli="claude";      wizard_default_model="sonnet" ;;
+    2) wizard_target_cli="codex";       wizard_default_model="gpt-5.3-codex"; wizard_lead_model="gpt-5.3-codex" ;;
+    3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro"; wizard_lead_model="gemini-3.5-pro" ;;
+    *) wizard_target_cli="claude";      wizard_default_model="sonnet"; wizard_lead_model="opus" ;;
   esac
 
   # --- スキルプレフィックス ---
@@ -568,8 +570,8 @@ commander:
 # === 各ロール モデル設定 ===
 models:
   commander: "${wizard_default_model}"
-  tech-lead: "${wizard_default_model}"
-  reviewer: "${wizard_default_model}"
+  tech-lead: "${wizard_lead_model}"
+  reviewer: "${wizard_lead_model}"
   analyst: "${wizard_default_model}"
   ux-designer: "${wizard_default_model}"
 
@@ -1021,8 +1023,8 @@ load_config() {
       ;;
     *)
       MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-sonnet}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-sonnet}"
+      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-opus}"
+      MODEL_REVIEWER="${MODEL_REVIEWER:-opus}"
       MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
       MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
       ;;
