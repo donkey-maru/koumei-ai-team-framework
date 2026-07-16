@@ -434,7 +434,8 @@ run_wizard() {
   local output_dir output_instructions
   output_dir=$(prompt_input "出力先ディレクトリ（プロジェクトルートからの相対パス）" "docs-official")
   echo -e "  ${YELLOW}追加指示: 出力フォーマットの指定等（例: 「既存の.mdファイルを参考にすること」）${NC}"
-  output_instructions=$(prompt_input "追加指示（なければ空Enter）" "")
+  local default_output_instructions="出力先ディレクトリ直下に直接ファイルを置かず、Jiraチケット番号とタスク内容が分かるフォルダ名でまとめること（例: PROJ-123-user-profile-edit/design.md）"
+  output_instructions=$(prompt_input "追加指示（そのままならEnter、変更するなら上書き入力）" "$default_output_instructions")
 
   # --- Git（自動検出 → 確認） ---
   echo ""

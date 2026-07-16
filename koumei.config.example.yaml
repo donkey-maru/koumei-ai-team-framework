@@ -79,7 +79,9 @@ output:
                                           # 例: "docs-official", "docs-confidential", "docs/designs"
   format: "md"                            # 出力形式（現在は md のみ）
   instructions: |                         # 成果物に関する追加指示（任意）
-    # 例:
+    - 出力先ディレクトリ直下に直接ファイルを置かず、Jiraチケット番号とタスク内容が分かる
+      フォルダ名でまとめること（例: PROJ-123-user-profile-edit/design.md）
+    # 他の例:
     # - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
     # - 見出しレベルは ## から開始すること
 
