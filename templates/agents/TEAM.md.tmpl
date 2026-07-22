@@ -2,296 +2,217 @@
 
 ## プロジェクト: {{PROJECT_NAME}}
 
-{{PROJECT_DESCRIPTION}}
+### スキルコマンド一覧
+
+全ての指示出しはスキルコマンドで実行する。ロールの切り替えは不要。
+
+| コマンド | 役割 | 説明 |
+|---------|------|------|
+| `/koumei-start {要件}` | 諸葛孔明 | タスク定義・全担当への指示書作成 |
+| `/koumei-analyze [タスクID]` | analyst | 既存コードベースの分析 |
+| `/koumei-design [タスクID]` | **ux-designer + tech-lead** | UX設計と技術設計を**並列実行** |
+| `/koumei-review [タスクID]` | devils-advocate | 全成果物のレビュー |
+| `/koumei-implement [フェーズ番号]` | tech-lead | 実装（レビュー通過後） |
+| `/koumei-status` | 諸葛孔明 | 進捗確認・次のアクション提案 |
+
+個別実行（差し戻し時の再実行用）:
+
+| コマンド | 役割 | 説明 |
+|---------|------|------|
+| `/koumei-design-ux [タスクID]` | ux-designer | UX設計のみ単独実行 |
+| `/koumei-design-tech [タスクID]` | tech-lead | 技術設計のみ単独実行 |
 
 ### チーム構成
 
 | 役割 | コードネーム | ワークスペース | 責務 | モデル |
 |------|------------|--------------|------|--------|
-| **指揮者** | {{COMMANDER_NAME}} (commander) | `.agents/commander/` | 全体統括、タスク分割、指示出し、最終判断 | {{MODEL_COMMANDER}} |
-| **技術アーキテクチャ&実装担当** | tech-lead | `.agents/tech-lead/` | 技術設計・実装 | {{MODEL_TECH_LEAD}} |
-| **品質レビュー担当** | reviewer | `.agents/reviewer/` | 全成果物のレビュー・問題提起 | {{MODEL_REVIEWER}} |
-{{#IF_ROLE analyst}}
-| **分析担当** | analyst | `.agents/analyst/` | 既存コード・機能分析 | {{MODEL_ANALYST}} |
-{{/IF_ROLE}}
-{{#IF_ROLE ux-designer}}
-| **UXデザイン担当** | ux-designer | `.agents/ux-designer/` | モダンUI設計、コンポーネント設計 | {{MODEL_UX_DESIGNER}} |
-{{/IF_ROLE}}
+| **最高指揮者** | 諸葛孔明 (koumei) | `.agents/koumei/` | 全体統括、タスク分割、指示出し、最終判断 | sonnet |
+| **システム分析担当** | analyst | `.agents/analyst/` | 既存コード・API・DB分析 | sonnet |
+| **UXデザイン担当** | ux-designer | `.agents/ux-designer/` | UI設計、画面遷移設計、レスポンシブ対応 | sonnet |
+| **技術アーキテクチャ&実装担当** | tech-lead | `.agents/tech-lead/` | 技術設計・実装 | **fable**（設計）/ **opus**（実装） |
+| **悪魔の代弁者** | devils-advocate | `.agents/devils-advocate/` | 全成果物のレビュー・問題提起 | **fable** |
 
-### 技術スタック
+#### モデル指定の仕組み
 
-{{TECH_STACK_TABLE}}
+オーケストレーター（`/koumei-start` の各Phase、`/koumei-design`、`/koumei-review`）は、サブエージェント起動時に上記テーブルの「モデル」列を Agent tool の `model` パラメータに指定する。モデル列を書き換えるだけで、全スキルの起動モデルが変わる。
 
-### Git運用ルール
+- 指定可能な値: `haiku` / `sonnet` / `opus` / `fable`（またはフルモデルID）、および下記「外部CLIモデル定義」に登録した外部モデル名（`grok` / `codex` 等）
+- **外部CLIモデルを指定した場合**: オーケストレーターは Agent tool ではなく Bash 経由でその CLI を呼び出す。CLI が利用不可（`command -v` で不在）の場合は Claude の既定モデルにフォールバックし、その旨を報告する
+- **配置の原則**: 高単価モデルは「トークン量が多い場所」ではなく「判断のレバレッジが高く出力が小さい場所」に置く
+  - **devils-advocate = fable**: レビューVERDICTがフロー全体（差し戻しループ）を制御する品質ゲートであり、誤判定のコストが最も高い
+  - **tech-lead 設計 = fable / 実装 = opus**: 設計ミスは実装で増幅される。実装はトークン量が多いため opus（または Codex 委譲）
+  - **koumei / analyst / ux-designer = sonnet**: オーケストレーションは機械的、分析は読み取り中心
 
-**{{GIT_MAIN_BRANCH}}ブランチへの直接コミットは禁止。** 以下のフローを厳守すること。
+#### 外部CLIモデル定義
 
-1. タスク作業開始時に `{{GIT_BRANCH_PATTERN}}` ブランチを作成する
-2. 全ての作業（設計ドキュメント・実装・修正）はこのブランチで行う
-{{#IF_DEVELOP_BRANCH}}
-3. 完了後、**{{GIT_DEVELOP_BRANCH}}ブランチに対してPR**を作成する
-4. {{GIT_MAIN_BRANCH}}へのマージは{{GIT_DEVELOP_BRANCH}}経由で行う
+モデル列・レビューモデル・セカンドオピニオンで外部CLIモデルを使う場合の呼び出し方法。使用する CLI の仕様に合わせて編集してください。
+
+| モデル名 | 呼び出し方法 | 備考 |
+|---------|------------|------|
+| codex | `codex exec "{プロンプト}"` | OpenAI Codex CLI。モデルは `~/.codex/config.toml` の `model` に従う |
+| gpt-5.6-sol | `codex exec -m gpt-5.6-sol "{プロンプト}"` | codex CLI 経由でモデルを固定する例。`-m {モデルID}` で任意のモデルを登録できる |
+| grok | `grok -p "{プロンプト}"` | xAI Grok CLI（grok-4.5 等）。インストール済みの場合のみ |
+| gemini | `gemini "{プロンプト}"` | Google Gemini CLI |
+
+**サンドボックスの注意**: codex CLI の既定サンドボックスは読み取り専用。**ファイル書き込みを伴う委譲（分析成果物の保存・実装）では `-s workspace-write --full-auto` を追加する**こと（例: `codex exec -s workspace-write --full-auto "{プロンプト}"`）。レビュー・セカンドオピニオンのように標準出力を呼び出し元が受け取って保存する用途では不要。
+
+利用可否は CLI 本体の存在（例: `command -v codex`）で確認し、不可の場合は Claude にフォールバックして報告する。
+
+### カスタムロール（オプション）
+
+プロジェクト特性に応じてカスタムロールを追加できます。以下のテンプレートを参考に定義してください。
+
+<!-- 必要に応じてカスタムロールを追加 -->
+<!-- | **カスタムロール名** | custom-role-name | `.agents/custom-role-name/` | 責務の説明 | sonnet | -->
+
+#### カスタムロールの追加手順
+
+1. `.agents/{ロール名}/CLAUDE.md` を作成（下記テンプレート参照）
+2. 上記「チーム構成」テーブルにロールを追記
+3. 必要に応じて `/koumei-start` の指示書生成にロールを含める
+
+#### カスタムロール CLAUDE.md テンプレート
+
+```text
+# {ロール名} CLAUDE.md
+
+## 役割
+{このロールの責務を記載}
+
+## 責務
+1. {責務1}
+2. {責務2}
+
+## 成果物フォーマット
+{成果物の形式を記載}
+
+## ワークスペース
+- 指示書: `.agents/{ロール名}/instructions/`
+- 成果物: `.agents/{ロール名}/deliverables/`
+- 完了報告: `.agents/koumei/reports/`
+```
+
+### モデル委譲設定（トークン節約・オプション）
+
+サブエージェントの一部を外部モデル（Codex等）に委譲し、Claudeトークンを節約できます。
+
+<!-- 必要に応じてコメントを外し、委譲するロールを設定 -->
+<!--
+| 役割 | 委譲先 | 呼び出し方法 | 対象フェーズ |
+|------|--------|------------|------------|
+| analyst | codex | `codex exec -s workspace-write --full-auto "{プロンプト}"` | 分析（/koumei-analyze） |
+| tech-lead | codex | `codex exec -s workspace-write --full-auto "{プロンプト}"` | 実装（/koumei-implement） |
+-->
+
+**有効化方法**: 上記テーブルのコメントを外し、委譲するロールを記載してください。
+委譲未設定のロールは通常通りClaudeサブエージェントとして実行されます。
+
+**委譲に適さないロール（Claude推奨）:**
+- **koumei** — オーケストレーション（Claude Agent APIが必要）
+- **ux-designer** — 創造的なUX判断が多い
+- **devils-advocate** — 品質ゲートは信頼性重視
+
+### レビューモデル設定
+
+レビュー（devils-advocate）の実行モデルを設定する。
+上から順に優先度が高い。利用可能な最優先モデルが使用される。
+
+| 優先度 | モデル | 呼び出し方法 | 条件 |
+|--------|--------|------------|------|
+| 1 | codex | `/codex:review --wait` | codex スキルが利用可能 |
+| 2 | lmstudio | `mcp__lmstudio-mcp__chat_completion` | 節約モード時 (`review_mode: economy`) |
+| 3 | claude | Agent ツール（モデルは「チーム構成」の devils-advocate 列。既定: fable） | 常に利用可能 |
+| - | grok | grok CLI（「外部CLIモデル定義」参照） | `--model grok` 指定時。常用したい場合はこの表の優先度に組み込む |
+
+#### レビューモード
 
 ```
-{{GIT_MAIN_BRANCH}} ← {{GIT_DEVELOP_BRANCH}} ← {{GIT_BRANCH_PATTERN}}
+review_mode: default
+review_timeout: 600
 ```
-{{/IF_DEVELOP_BRANCH}}
-{{#IF_NO_DEVELOP_BRANCH}}
-3. 完了後、**{{GIT_MAIN_BRANCH}}ブランチに対してPR**を作成する
+
+- `default` — 優先度順（codex → claude）
+- `economy` — lmstudio-mcp を優先（codex → lmstudio → claude）
+- `claude-only` — 常に Claude（devils-advocate のモデル列。既定: fable）を使用
+- `review_timeout` — codex / lmstudio レビューの制限時間（秒）。超過したら中断し、次の優先モデルにフォールバックする
+- 一時的な切り替えは `/koumei-review --model claude` のように `--model` フラグで指定できる（TEAM.md の編集不要）
+
+### セカンドオピニオン設定（オプション）
+
+Devil's Advocateレビュー時に、Claude以外のモデルによるセカンドオピニオンを取得できます。
+
+<!-- 必要に応じてセカンドオピニオンモデルを設定 -->
+<!--
+| モデル名 | プロバイダー | 呼び出し方法 |
+|---------|------------|------------|
+| codex | OpenAI | `codex exec "{プロンプト}"` |
+| grok | xAI | `grok -p "{プロンプト}"` |
+| gemini | Google | `gemini "{プロンプト}"` |
+-->
+
+**有効化方法**: 上記テーブルのコメントを外し、使用するモデルを記載してください。
+セカンドオピニオンが未設定の場合、`/koumei-review` は通常のClaude単独レビューとして動作します。
+
+### マルチタスク実行（オプション）
+
+`/koumei-start {要件} --multi` で、独立した複数タスクを並列実行できます。
+
+- 諸葛孔明が要件を複数タスクに分割し、タスクごとに **task-manager（部将）** サブエージェントを起動
+- 各 task-manager は git worktree 内で Phase 1〜7 のパイプラインを完遂し、PR作成まで行う
+- 依存関係・ファイル競合のあるタスクは直列実行される
+- **前提**: Claude Code v2.1.172 以降（サブエージェントのネスト起動）、`.agents/`・`.claude/` がリポジトリにコミットされていること
+- 詳細手順: `.claude/skills/koumei-start/docs/multi-task.md` / 役割定義: `.agents/task-manager/CLAUDE.md`
+
+### ワークフロー（スキル駆動）
 
 ```
-{{GIT_MAIN_BRANCH}} ← {{GIT_BRANCH_PATTERN}}
-```
-{{/IF_NO_DEVELOP_BRANCH}}
-
-### 開発規約
-
-プロジェクト固有の開発ルール（機能追加時の必須実装・禁止事項など）は `docs/` 以下の
-ルールドキュメントを参照すること。
-CI で自動チェックされるルールは `.ci/` スクリプトを確認する。
-
-### ワークフロー
-
-```
-【準備】
-0. {{GIT_BRANCH_PATTERN}} ブランチを作成
-
 【設計フェーズ】
-1. {{COMMANDER_NAME}}がタスクを定義 → .agents/commander/tasks/
-2. {{COMMANDER_NAME}}が各担当に指示書を配置 → .agents/{担当}/instructions/
-{{#IF_ROLE analyst}}
-3. analyst が既存システム分析 → {{OUTPUT_DIR}}/
-{{/IF_ROLE}}
-{{#IF_ROLE ux-designer}}
-4. ux-designer と tech-lead が並列で設計 → {{OUTPUT_DIR}}/
-{{/IF_ROLE}}
-{{#IF_NO_ROLE ux-designer}}
-4. tech-lead が技術設計 → {{OUTPUT_DIR}}/
-{{/IF_NO_ROLE}}
-5. 各担当が完了報告 → .agents/commander/reports/
-6. reviewer がレビュー → {{OUTPUT_DIR}}/
-7. **{{COMMANDER_NAME}}がレビュー結果を確認し、ユーザーに報告** → ユーザーの判断を仰ぐ（承認 / 修正指示 / 差し戻し）
+1. /koumei-start {要件}       → タスク定義・指示書を自動生成
+2. /koumei-analyze             → 既存システム分析
+3. /koumei-design              → UX設計 + 技術設計を並列実行
+4. /koumei-review              → 全成果物レビュー
+   → 差し戻し: /koumei-design-ux or /koumei-design-tech で個別再実行 → /koumei-review
 
 【実装フェーズ】
-8. ユーザー承認後 → tech-lead が実装開始
-{{#IF_CHECK_COMMAND}}
-9. 実装完了 → {{BUILD_COMMAND}} 成功を確認 → {{CHECK_COMMAND}}（lint/format）を実行
-{{/IF_CHECK_COMMAND}}
-{{#IF_NO_CHECK_COMMAND}}
-9. 実装完了 → {{BUILD_COMMAND}} 成功を確認
-{{/IF_NO_CHECK_COMMAND}}
-10. reviewer がコードレビュー → {{OUTPUT_DIR}}/
-11. **{{COMMANDER_NAME}}がコードレビュー結果を確認し、ユーザーに報告** → ユーザーの判断を仰ぐ
+5. /koumei-implement           → 実装（レビュー通過後のみ実行可能）
+6. /koumei-review              → コードレビュー
 
-【完了】
-12. {{COMMANDER_NAME}}が最終確認 → ブランチをプッシュして停止（PR作成はユーザーが手動で行う）
+【検証フェーズ】
+7. /koumei-status              → 最終進捗確認
+8. 動作確認 → メインブランチへ PR
+
+※ 迷ったら /koumei-status で次のアクションを確認
 ```
 
-### ワークフローとスキルコマンドの対応
+### 対象プロジェクト
 
-| ステップ | 内容 | スキルコマンド | 実行者 |
-|---------|------|--------------|--------|
-| 0 | ブランチ作成 | `/{{SKILL_PREFIX}}-start` 内で自動実行 | commander |
-| 1-2 | タスク定義・指示書配置 | `/{{SKILL_PREFIX}}-start` | commander |
-{{#IF_ROLE analyst}}
-| 3 | 既存コード分析 | `/{{SKILL_PREFIX}}-analyze` | analyst |
-{{/IF_ROLE}}
-{{#IF_ROLE ux-designer}}
-| 4 | UX設計+技術設計（並列） | `/{{SKILL_PREFIX}}-design` | ux-designer + tech-lead |
-{{/IF_ROLE}}
-{{#IF_NO_ROLE ux-designer}}
-| 4 | 技術設計 | `/{{SKILL_PREFIX}}-design-tech` | tech-lead |
-{{/IF_NO_ROLE}}
-| 5-7 | レビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
-{{#IF_CHECK_COMMAND}}
-| 8-9 | 実装 + ビルド確認 + Lint/Formatチェック | `/{{SKILL_PREFIX}}-implement` | tech-lead |
-{{/IF_CHECK_COMMAND}}
-{{#IF_NO_CHECK_COMMAND}}
-| 8-9 | 実装 + ビルド確認 | `/{{SKILL_PREFIX}}-implement` | tech-lead |
-{{/IF_NO_CHECK_COMMAND}}
-| 10-11 | コードレビュー + commander判断 | `/{{SKILL_PREFIX}}-review` | reviewer → commander |
-| 12 | 最終確認 + プッシュ | `/{{SKILL_PREFIX}}-status` | commander |
+<!-- 自プロジェクトに合わせて編集 -->
 
-**備考:**
-- `/{{SKILL_PREFIX}}-request` はステップ0の前段（要件整理）として任意で使用
-- `/{{SKILL_PREFIX}}-run` はステップ1〜12を自動連鎖実行（各レビューでユーザー判断を挟む）
-{{#IF_ROLE ux-designer}}
+| プロジェクト | パス | フレームワーク | 役割 |
+|------------|------|--------------|------|
+| **{{PROJECT_1}}** | `{{PROJECT_1_PATH}}` | {{FRAMEWORK_1}} | {{ROLE_1}} |
+| **{{PROJECT_2}}** | `{{PROJECT_2_PATH}}` | {{FRAMEWORK_2}} | {{ROLE_2}} |
 
-### 並列実行について
+### 通信アーキテクチャ
 
-ステップ4の `/{{SKILL_PREFIX}}-design` はオーケストレーターとして機能し、ux-designer と tech-lead の設計作業を **利用可能なサブエージェント機能で並列実行** する。
-これにより設計フェーズの所要時間を短縮する。
-個別に実行したい場合は `/{{SKILL_PREFIX}}-design-ux` と `/{{SKILL_PREFIX}}-design-tech` を使用する。
-{{/IF_ROLE}}
+<!-- 自プロジェクトのアーキテクチャに合わせて編集 -->
 
-### 成果物の出力ルール
-
-**出力先ディレクトリ:** `{{OUTPUT_DIR}}/`
-
-設計書・分析レポート・レビュー結果などの成果物は、上記ディレクトリに `.md`（Markdown）形式で出力する。
-
-{{OUTPUT_INSTRUCTIONS}}
-
-**⚠️ 指示の優先順位:**
-
-1. **プロジェクトの AGENTS.md / CLAUDE.md**（テックチーム管理）に成果物出力先の記述がある場合 → **そちらを最優先**
-2. **このファイル（TEAM.md）の設定** → {{AGENT_INSTRUCTIONS_FILENAME}} に記述がなければこちらに従う
-3. **koumei-ai-team-framework のデフォルト** → 上記いずれもなければ `docs-official/` に出力
-
-指示書（instructions/）・タスク定義（tasks/）・完了報告（reports/）・要件指示書（requests/）は `.agents/` 内に配置する（AIの内部通信用）。
-
-### .agents/ 内部ディレクトリの役割
-
-| ディレクトリ | 用途 | 例 |
-|------------|------|-----|
-| `commander/tasks/` | タスク定義（要件・フェーズ・チェックリスト） | `task-001.md` |
-| `commander/requests/` | 要件指示書（`/{{SKILL_PREFIX}}-request` で作成） | `ga4-analytics.md` |
-| `commander/reports/` | 各担当からの完了報告 | `task-001-analyst-report.md` |
-| `{担当}/instructions/` | commander から各担当への指示書 | `task-001-instruction.md` |
+```
+[クライアント] --> [APIサーバー] --> [データベース]
+```
 
 ### 指示書・報告書の命名規則
 
-- 要件指示書: `{要件名}.md` ケバブケース (例: `ga4-analytics.md`)
-- タスク定義: `task-{番号}.md` (例: `task-001.md`)
-- 指示書: `task-{番号}-instruction.md` (例: `task-001-instruction.md`)
-- 成果物: `task-{番号}-{種類}.md` (例: `task-001-analysis.md`)
-- レビュー: `task-{番号}-review.md` (例: `task-001-review.md`)
-- 完了報告（設計）: `task-{番号}-{担当名}-report.md` (例: `task-001-tech-lead-report.md`)
-- 完了報告（実装）: `task-{番号}-{担当名}-implement-report.md` (例: `task-001-tech-lead-implement-report.md`)
-- コードレビュー: `task-{番号}-code-review.md` (例: `task-001-code-review.md`)
+- タスク定義: `{タスクID}.md` (例: `task-001.md`)
+- 指示書: `{タスクID}-instruction.md` (例: `task-001-instruction.md`)
+- 成果物: `{タスクID}-{種類}.md` (例: `task-001-analysis.md`)
+- 分析レビュー: `{タスクID}-analysis-review.md` (例: `task-001-analysis-review.md`)
+- 設計レビュー: `{タスクID}-design-review.md` (例: `task-001-design-review.md`)
+- コードレビュー: `{タスクID}-code-review.md` (例: `task-001-code-review.md`)
+- 完了報告: `{タスクID}-{担当名}-report.md` (例: `task-001-analyst-report.md`)
 
-### 完了報告の共通フォーマット
+### 開発規約
 
-各担当が `.agents/commander/reports/` に配置する完了報告は、以下のフォーマットに従うこと。
+<!-- プロジェクト固有の開発規約を記載 -->
 
-```markdown
-# 完了報告: {タスクID} - {担当名}
-
-## フェーズ
-{設計 / 分析 / UX設計 / 実装 / レビュー}
-
-## サマリー
-{3行以内で成果の概要}
-
-## 成果物
-- {出力したファイルパスのリスト}
-
-## 主要な判断・発見事項
-- {設計判断、発見した問題、採用した方針等}
-
-## リスク・懸念事項
-- {残存リスク、注意すべき点。なければ「なし」}
-
-## 次フェーズへの申し送り
-- {次の担当が知るべき情報。なければ「なし」}
-```
-
-### リトライ上限
-
-| 対象 | 上限 | 超過時の対応 |
-|------|------|------------|
-| 設計レビュー差し戻し | 3回 | 停止してユーザーに方針見直しを提案 |
-| コードレビュー差し戻し | 3回 | 停止してユーザーに報告 |
-| ビルド失敗 | 3回 | 停止してエラー内容を報告 |
-| テスト失敗 | 2回 | 停止して失敗内容を報告 |
-{{#IF_CHECK_COMMAND}}
-| Lint/Formatエラー（自動修正不可分） | 2回 | 停止して残存エラーを報告 |
-{{/IF_CHECK_COMMAND}}
-
-### 異常系の対応ルール
-
-**共通原則:**
-- 異常時は必ずユーザーに報告し、指示を待つ。自動で判断しない
-- 停止前に状況をファイルに記録し、進捗を失わない
-
-#### ベースブランチが存在しない
-ユーザーに報告し、代替ブランチを確認してから進める。
-
-#### ビルド失敗時の対応（エラー数ベース判定）
-
-```
-初回ビルド → 失敗（エラーN件）
-  → エラー解析 → 修正A を適用
-  → 2回目ビルド:
-    ├── 成功 → 完了
-    ├── エラー減少（N→M件, M<N）→ 修正Aは正しい。残りのエラーを修正
-    ├── エラー同数 or 増加 → 修正Aが不適切。ロールバックして別アプローチ
-    └── 全く別のエラー → 修正Aは正しいが新問題。修正A維持で新エラーに対応
-  → 3回目ビルド:
-    ├── 成功 → 完了
-    └── 失敗 → 停止。ユーザーに報告
-```
-
-#### テスト失敗時の対応
-
-```
-テスト実行 → 失敗（N件）
-  → 失敗テストを分類:
-    A. 今回の実装が原因 → 実装コードを修正（テストは変更しない）
-    B. 既存テストが新仕様に合わない → ユーザーに報告しテスト修正の許可を得る
-    C. 今回の実装と無関係 → 今回のスコープ外として報告のみ
-  → 修正 → 再テスト:
-    ├── 成功 → 完了
-    ├── 失敗数が減少 → 修正を維持して残りに対応
-    ├── 失敗数が同数 or 増加 → ロールバックして別アプローチ
-    └── 別のテストが新たに壊れた → ロールバック。即停止してユーザーに報告
-  → 2回修正しても解決しない → 停止。ユーザーに報告
-```
-
-**テスト対応の注意:**
-- テストを通すためにテストの方を変えない（B分類の場合はユーザー許可必須）
-- 無関係な既存テスト失敗（C分類）は今回のタスクでは対応しない
-- 別のテストが新たに壊れた場合は即停止（波及はエラーの沼の入口）
-
-{{#IF_CHECK_COMMAND}}
-#### Lint/Formatチェック失敗時の対応（`{{CHECK_COMMAND}}`）
-
-```
-チェック実行（自動修正あり）:
-  ├── 差分のみ発生（自動修正で解決）→ 修正をコミット対象に含めて続行（停止しない）
-  ├── 自動修正で解消できない lint エラーが残存 → 該当箇所を手動修正 → 再チェック
-  │     ├── エラー減少 → 修正を維持して残りに対応
-  │     └── エラー同数/増加 → ロールバックして別アプローチ
-  │     └── 2回修正しても解決しない → 停止してユーザーに報告
-  └── コマンドが存在しない（Missing script / command not found）
-        → このプロジェクトは lint 未導入と判断しスキップ。完了報告にその旨を記録（失敗扱いにしない）
-```
-
-**Lint対応の注意:**
-- 自動修正で発生した整形差分は今回の変更に含めてよい（別PRに分けない）
-- lint 設定（biome.json 等）自体は勝手に変更しない。ルール変更が必要ならユーザーに報告
-{{/IF_CHECK_COMMAND}}
-
-#### 指示書・成果物が見つからない
-不足ファイルを特定してユーザーに報告し、前のステップの再実行を案内する。
-
-#### Git競合（コンフリクト）
-競合内容をユーザーに報告し、自動解決せずユーザーの指示を待つ。
-
-#### コンテキスト上限到達
-現在の進捗をファイルに保存して停止。再開手順をユーザーに案内する。
-
-{{#IF_MIGRATION}}
-### 移行元プロジェクト
-
-- パス: `{{MIGRATION_SOURCE_PATH}}`
-- フレームワーク: {{MIGRATION_SOURCE_FRAMEWORK}}
-
-### 移行先プロジェクト
-
-- パス: `{{PROJECT_PATH}}`
-- フレームワーク: {{MIGRATION_TARGET_FRAMEWORK}}
-{{/IF_MIGRATION}}
-
-### このファイルについて
-
-このファイルは `koumei-ai-team-framework` の `setup.sh` によって、`koumei.config.yaml` の設定とテンプレートから自動生成されたものである。
-
-各スキル（`{{SKILLS_DIR}}/*/SKILL.md`）内のワークフロー図や次ステップ案内は、ロール構成に応じて `setup.sh` が動的に生成している。
-スキル内の記述とこのファイルの記述は同一の設定から生成されるため、整合性が保たれる。
-
-設定を変更する場合は `koumei.config.yaml` を編集して `setup.sh` を再実行すること。
-
-### 参照ドキュメント
-
-{{REFERENCE_DOCS}}
+- コミットメッセージに自動生成マーカーやCo-Authored-Byを含めない

@@ -1,0 +1,33 @@
+#!/bin/bash
+# 孔明エージェントチーム — フェーズ完了通知
+# PostToolUse(Write) で呼ばれ、成果物ファイルの書き込みを検知して通知
+
+FILE_PATH=$(echo "$CLAUDE_TOOL_INPUT" 2>/dev/null | jq -r '.file_path // empty' 2>/dev/null)
+
+if [ -z "$FILE_PATH" ]; then
+  exit 0
+fi
+
+NOTIFY_MSG=""
+
+# deliverables（成果物）への書き込みを検知
+if echo "$FILE_PATH" | grep -qE '\.agents/.*/deliverables/'; then
+  ROLE=$(echo "$FILE_PATH" | sed -E 's|.*\.agents/([^/]+)/deliverables/.*|\1|')
+  NOTIFY_MSG="孔明チーム: ${ROLE} の成果物が完成しました"
+fi
+
+# reviews（レビュー結果）への書き込みを検知
+if echo "$FILE_PATH" | grep -qE '\.agents/devils-advocate/reviews/'; then
+  NOTIFY_MSG="孔明チーム: レビューが完了しました"
+fi
+
+# reports（最終報告）への書き込みを検知
+if echo "$FILE_PATH" | grep -qE '\.agents/koumei/reports/'; then
+  NOTIFY_MSG="孔明チーム: フェーズ完了報告が提出されました"
+fi
+
+if [ -n "$NOTIFY_MSG" ]; then
+  osascript -e "display notification \"$NOTIFY_MSG\" with title \"諸葛孔明\"" 2>/dev/null || true
+fi
+
+exit 0

@@ -1,0 +1,87 @@
+---
+name: koumei-implement
+description: tech-lead（技術アーキテクチャ&実装担当）として実装フェーズを開始する。設計レビュー通過後に使用。
+argument-hint: "[フェーズ番号]"
+disable-model-invocation: true
+allowed-tools: Read Glob Grep Write Edit Bash
+---
+
+# 技術アーキテクチャ&実装担当 (Tech Lead) - 実装フェーズ
+
+あなたはtech-lead（技術アーキテクチャ&実装担当）として実装を行う。
+
+## ワークフロー上の位置
+`/koumei-review` で承認された後に実行。完了後は `/koumei-review` でコードレビュー。
+
+```
+/koumei-review（承認）→ ▶ /koumei-implement → /koumei-review（コードレビュー）→ /koumei-status
+```
+
+## モデル委譲チェック
+
+`.agents/TEAM.md` の「モデル委譲設定」テーブル（コメント外されたもの）を確認する。
+`tech-lead` が `実装（/koumei-implement）` の委譲先として設定されている場合:
+
+1. 以下の全成果物を読み込む:
+   - `.agents/analyst/deliverables/` の分析結果
+   - `.agents/ux-designer/deliverables/` のUX設計
+   - `.agents/tech-lead/deliverables/` の技術設計
+   - `.agents/devils-advocate/reviews/` のレビュー結果
+   - `.agents/koumei/tasks/` のタスク定義
+   - `.agents/tech-lead/CLAUDE.md` の役割定義
+2. 以下の内容を含むプロンプトを組み立てる:
+   - 役割定義の全文
+   - 全成果物の内容（分析・設計・レビュー結果）
+   - 「以下の前提確認〜実装手順に従って実装すること」
+   - 以下「前提確認」「実装手順」セクションの内容
+   - 「完了報告を `.agents/koumei/reports/task-{番号}-tech-lead-implement-report.md` に保存すること」
+3. Bash ツールで委譲先を実行する。呼び出し方法は TEAM.md の委譲設定テーブルに従う（codex の場合: `codex exec -s workspace-write --full-auto "{プロンプト}"`。コード書き込みがあるため workspace-write 必須）
+4. 実行完了後、ビルド確認を行い、結果をユーザーに報告する
+5. 次のステップを案内して終了する
+
+**注意**: 委譲先モデルの実装後も、次の `/koumei-review`（コードレビュー）は必ずClaude（devils-advocate）が実行する。
+
+委譲設定がない場合は、以下の通常手順で実行する。
+
+## 前提確認
+
+### 1. レビュー通過の確認
+`.agents/devils-advocate/reviews/` のレビュー結果を確認し、Critical指摘が残っていないことを確認する。
+Criticalが残っている場合は実装を開始せず、ユーザーに報告する。
+
+### 2. 設計書の参照
+以下の成果物を全て読み、実装の全体像を把握する:
+- `.agents/analyst/deliverables/` の分析結果
+- `.agents/ux-designer/deliverables/` のUX設計
+- `.agents/tech-lead/deliverables/` の技術設計
+- `.agents/devils-advocate/reviews/` のレビュー結果（改善提案を反映）
+
+### 3. タスク定義の確認
+`.agents/koumei/tasks/` のタスク定義を読み、実装フェーズと優先度を確認する。
+
+## 実装手順
+
+### 4. 実装
+- `$ARGUMENTS` でフェーズ番号が指定されている場合、そのフェーズのみ実装
+- 指定がない場合、Phase 1から順に実装
+- 技術設計書に記載された実装手順に従う
+- 既存コードのパターンを踏襲する
+
+### 5. 開発規約の遵守
+`.agents/TEAM.md` の開発規約セクション、およびプロジェクトの `CLAUDE.md` を確認し、規約を遵守する。
+
+### 6. ビルド確認
+実装完了後、ビルドが成功することを確認する。
+
+### 7. 完了報告
+`.agents/koumei/reports/task-{番号}-tech-lead-implement-report.md` に以下を記載:
+- 実装したフェーズ
+- 変更ファイル一覧
+- 動作確認結果
+- 残課題・次フェーズへの申し送り
+
+次のステップをユーザーに案内する:
+
+```
+次のステップ: /koumei-review でコードレビューを実行してください。
+```
