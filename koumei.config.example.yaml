@@ -4,6 +4,7 @@
 # このファイルをプロジェクトルートに koumei.config.yaml としてコピーし、
 # プロジェクトに合わせて編集してください。
 # setup.sh がこの設定を読み込み、テンプレートを展開します。
+# 設定変更後は setup.sh --update で再展開してください（TEAM.md 等は生成ファイルです）。
 
 # === プロジェクト基本情報 ===
 project:
@@ -20,35 +21,45 @@ migration:
   target_framework: ""               # 例: "Next.js 15", "Rails 7", "React"
 
 # === ロール構成 ===
-# コアロール（commander, tech-lead, reviewer）は必須
+# コアロール（koumei, tech-lead, devils-advocate）は必須
 # オプションロールはコメント解除で有効化
 roles:
-  - commander
+  - koumei
   - tech-lead
-  - reviewer
+  - devils-advocate
   # - analyst                        # 既存コード分析担当
   # - ux-designer                    # UI/UX設計担当
 
 # === スキルコマンド設定 ===
 # 対象CLI: "claude"（.claude/skills + CLAUDE.md）または "codex"（.codex/skills + AGENTS.md）または "antigravity"（.agents/skills + AGENTS.md）
+# Hooks・マルチタスク等の Claude Code 固有機能は claude ターゲットのみ展開される
 target_cli: "claude"
 # スキルコマンドの接頭辞（例: /koumei-start, /km-start, /dev-start）
 skill_prefix: "koumei"
 
 # === 指揮者設定 ===
 commander:
-  name: "Commander"                  # コードネーム（例: "諸葛孔明", "Archimedes"）
+  name: "諸葛孔明"                   # 最高指揮者（koumei）のコードネーム
 
 # === 各ロール モデル設定 ===
-# Claude Code では sonnet/opus 等、Codex CLI では gpt-5.3-codex 等、Antigravity CLI では gemini-3.5-pro 等、利用するCLIに合わせて指定
-# tech-lead（設計・実装）と reviewer（品質ゲート）は特に負荷の高い推論を行うため、
-# デフォルトで上位モデル（Claude Code なら opus）を割り当てている
+# tech-lead はフェーズ分割（設計/実装）。
+# 配置の原則: 高単価モデルは「トークン量が多い場所」ではなく「判断のレバレッジが高く出力が小さい場所」に置く
+# - devils-advocate: レビューVERDICTがフロー全体を制御する品質ゲート → 最上位モデル
+# - tech-lead-design: 設計ミスは実装で増幅される → 最上位モデル
+# - tech-lead-implement: トークン量が多い → 1段下のモデル
+# 指定可能な値: haiku / sonnet / opus / fable（またはフルモデルID）、TEAM.md の外部CLIモデル定義に登録した名前
 models:
-  commander: "sonnet"
-  tech-lead: "opus"
-  reviewer: "opus"
+  koumei: "sonnet"
   analyst: "sonnet"
   ux-designer: "sonnet"
+  tech-lead-design: "fable"
+  tech-lead-implement: "opus"
+  devils-advocate: "fable"
+
+# === レビュー設定 ===
+review:
+  mode: "default"                    # default（codex→claude） | economy（codex→lmstudio→claude） | claude-only
+  timeout: 600                       # 外部CLIレビューのタイムアウト（秒）。超過で次順位モデルにフォールバック
 
 # === 技術スタック ===
 tech_stack:
@@ -68,30 +79,29 @@ tech_stack:
 git:
   main_branch: "main"
   develop_branch: "develop"          # 空文字の場合、mainに直接マージ
-  feature_prefix: "feature/"
   branch_pattern: "feature/task-{number}-{summary}"
+  dev_rules: ""                      # TEAM.md の開発規約に追記する行（任意・複数行可）
 
 # === 成果物の出力設定 ===
-# AIエージェントが生成する設計書・レビュー等の出力先
-# プロジェクトの AGENTS.md や CLAUDE.md に出力先の指示がある場合はそちらが優先される
+# 作業成果物（分析・設計・レビュー・報告）は .agents/ 配下の各ワークスペースに置かれる
+# output.dir は公式ドキュメント（要件・仕様・設計のまとめ）の出力先
 output:
-  dir: "docs-official"                    # 成果物の出力ディレクトリ（プロジェクトルート相対）
-                                          # 例: "docs-official", "docs-confidential", "docs/designs"
+  dir: "docs-official"                    # 公式ドキュメントの出力ディレクトリ（プロジェクトルート相対）
   format: "md"                            # 出力形式（現在は md のみ）
-  instructions: |                         # 成果物に関する追加指示（任意）
+  instructions: |                         # 公式ドキュメントに関する追加指示（任意）
     # 例:
     # - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
     # - 見出しレベルは ## から開始すること
 
-# === カスタム指示（各ロールの指示ファイルに追記される） ===
+# === カスタム指示（各ロールの指示ファイル末尾に追記される） ===
 custom_instructions:
-  commander: ""
+  koumei: ""
   tech-lead: |
     # ここにプロジェクト固有の技術指示を記述
     # 例:
     # - RSC ファースト: Server Components をデフォルト
     # - DTO シリアライゼーション: Server→Client 境界で必ず DTO 化
-  reviewer: |
+  devils-advocate: |
     # ここにプロジェクト固有のレビュー観点を記述
     # 例:
     # - OWASP Top 10 を重点レビュー
