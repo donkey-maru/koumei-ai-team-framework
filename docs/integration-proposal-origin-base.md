@@ -1,23 +1,24 @@
-# koumei 統合提案書: origin アーキテクチャ × framework リポジトリ
+# koumei 統合計画書: origin アーキテクチャの取り込み
 
-> 前提決定:
+> 決定事項:
 > - **アーキテクチャは origin 準拠**（ロール構成・ペルソナ・レビュー体制・Hooks・マルチタスク・規約）
-> - **リポジトリは framework**（`donkey-maru/koumei-ai-team-framework`）を使用。origin のコンテンツを framework に取り込む
-> - **マルチCLI展開（claude / codex / antigravity）は維持**。ただし CLI 別機能マトリクスで段階対応（後述）
+> - **リポジトリは framework**（`donkey-maru/koumei-ai-team-framework`）。本リポジトリの開発にテックリーダーは関与しない
+> - **origin（`kuruusuniku/koumei`）は上流OSSとして扱う**: MIT ライセンスに基づきコンテンツを取り込み、出典コミットを記録。以後の追従は任意（良い改善だけ手動で取り込む）
+> - **マルチCLI展開（claude / codex / antigravity）は維持**。CLI 別機能マトリクスで段階対応
 >
 > 比較の詳細は `integration-comparison-origin.md` を参照。
 
 ---
 
-## 1. 統合の基本方針
+## 1. 基本方針
 
-| 決定事項 | 内容 |
+| 項目 | 内容 |
 |---|---|
-| リポジトリ | **framework**（`donkey-maru/koumei-ai-team-framework`）。統合作業はすべて framework への PR として行う |
+| リポジトリ | **framework** のまま。統合作業はすべて本リポジトリへの PR |
+| origin の扱い | **上流スナップショット取り込み**。取り込み元コミットを記録（現時点の main: `a00de20`）。LICENSE/README に出典と MIT 表記を残す。origin 側の今後の開発に追従義務はなく、有用な改善のみ `git log {取り込みコミット}..` で差分レビューして手動移植 |
 | アーキテクチャ | **origin 準拠**: ロール構成（koumei / analyst / ux-designer / tech-lead / devils-advocate / task-manager）、`.agents/` レイアウト、レビュー体制、フェーズ省略ルール、差し戻しカウンタ |
-| 規約 | origin 準拠: 諸葛孔明ペルソナ、`disable-model-invocation: true`、コミットメッセージの Co-Authored-By 禁止 |
-| origin リポジトリの扱い | コンテンツ移植元。移植完了後の扱い（アーカイブ or 保持）はテックリーダー判断 |
-| マルチCLI | **維持**。framework の `target_cli` + `{{#IF_CLI}}` 条件分岐エンジンで CLI 別に生成。Claude Code 固有機能は claude ターゲット限定として明示 |
+| 規約 | origin 準拠を**自分の選択として**採用: 諸葛孔明ペルソナ、`disable-model-invocation: true`、コミットメッセージの Co-Authored-By 禁止。いずれも自分の裁量でいつでも変更可 |
+| マルチCLI | **維持**。framework の `target_cli` + `{{#IF_CLI}}` 条件生成で CLI 別に出し分け。Claude Code 固有機能は claude ターゲット限定として明示 |
 
 ## 2. origin から取り込むもの（アーキテクチャ・コンテンツ）
 
@@ -39,7 +40,7 @@
 - Git 管理下ファイルの上書き保護 + バックアップ
 - マルチCLI展開（`target_cli` + `{{#IF_CLI}}` 条件生成）
 - `koumei-request`（要件整理スキル。origin に存在しない）→ 孔明ペルソナに合わせて改修
-- `check_command`(PR前 lint ゲート）
+- `check_command`（PR前 lint ゲート）
 - `custom_instructions`（ロール別カスタム指示の注入）
 - **TEAM.md の生成化**: origin の「TEAM.md 内 Markdown 表設定」（モデル列 / 外部CLIモデル定義 / review_mode / セカンドオピニオン設定等）を config のキーに吸収し、TEAM.md は config から生成する
   - origin の quality-gate hook（TEAM.md 直接編集ブロック）と整合: 設定変更 = config 編集 → `--update` が正規ルートになる
@@ -85,37 +86,34 @@ origin の一部機能は Claude Code 固有機構（Hooks / Agent tool / サブ
 | origin の手動プレースホルダ置換 | 落とす | テンプレートエンジンで自動化 |
 | origin quality-gate.sh の tachikoma 由来デッドコード | 落とす | 移植時に清掃 |
 
-## 7. 段階的実行計画（すべて framework への PR）
+## 7. 段階的実行計画（すべて framework への PR。承認待ち工程なし）
 
 | Phase | 内容 | 規模感 |
 |---|---|---|
-| 0 | **テックリーダー合意**: 本提案の承認、framework リポジトリの共同運用体制（テックリーダーの権限付与 / レビュー・マージルール）、統合作業中の凍結ルール（origin への新機能追加は凍結 or 統合ブランチに直接） | 協議1回 |
-| 1 | **origin コンテンツ取り込み + テンプレート化**（統合の山場）: origin の `.agents/` 一式・skills・hooks・ルール文書を framework の `templates/` に `.tmpl` として取り込み。`{{#IF_CLI}}` で CLI 別出し分け。ロール名を origin 準拠に刷新。TEAM.md 生成化（origin の表設定を config キーへ吸収） | 大 |
+| 1 | **origin コンテンツ取り込み + テンプレート化**（統合の山場）: origin の `.agents/` 一式・skills・hooks・ルール文書を framework の `templates/` に `.tmpl` として取り込み（取り込み元コミットを記録、MIT 出典表記）。`{{#IF_CLI}}` で CLI 別出し分け。ロール名を origin 準拠に刷新。TEAM.md 生成化（origin の表設定を config キーへ吸収） | 大 |
 | 2 | **スキル統合**: koumei-request を孔明ペルソナで統合 / koumei-run 廃止（start に統合）/ check_command・custom_instructions の組み込み / `disable-model-invocation: true` 復活 | 中 |
 | 3 | **origin 固有機能の動作確認**: レビュー拡張（--security / --second-opinion / タイムアウトFB）・マルチタスク・Hooks が生成後のプロジェクトで動くことを claude ターゲットで検証。codex/antigravity 版の生成内容確認 | 中 |
 | 4 | **ドキュメント2層化**（新規実装） | 中 |
-| 5 | **移行**: framework 利用7プロジェクト（ロール名リネーム + config 変換スクリプト）、origin 利用プロジェクト（新 setup.sh でウィザード → 既存 TEAM.md の値を初期値として提示）。origin リポジトリの扱いを最終決定 | 中 |
+| 5 | **移行**: framework 利用7プロジェクトを新バージョンへ移行（ロール名リネーム + config 変換スクリプト） | 中 |
+
+各 Phase は独立して価値が出る構成（Phase 1 が入った時点で origin 相当の運用が config 駆動で使える）。
 
 ## 8. 既存プロジェクトの移行方針
 
-### framework 利用7プロジェクト（terafro-neoclient / youtube_dl / admin-next / prevoapi / client-next / client-n3 / shonan_prevo）
+対象は framework 利用7プロジェクトのみ（terafro-neoclient / youtube_dl / admin-next / prevoapi / client-next / client-n3 / shonan_prevo）。
 
 - 変換スクリプトを用意: `.agents/commander/` → `.agents/koumei/`、`reviewer/` → `devils-advocate/` のリネーム + 参照パス一括置換 + config スキーマ変換（models フェーズ分割対応等）
 - 進行中タスクがあるプロジェクトはタスク完了後に移行
 - スキル名（`/koumei-start` 等）は共通なので操作感の変化は小さい。`/koumei-run` 利用は `/koumei-start`（全自動）へ移行
 
-### origin 利用プロジェクト（テックリーダー側）
-
-- 新 setup.sh を実行 → config が無いためウィザード起動（既存 TEAM.md から値を読み取って初期値提示できると移行コストほぼゼロ）
-- `.agents/` レイアウト・ロール名は origin と同一のため、ディレクトリ移行は不要
+※ origin 利用プロジェクト（テックリーダー側）の移行は本計画のスコープ外。
 
 ## 9. リスクと対策
 
 | リスク | 対策 |
 |---|---|
-| リポジトリ運用体制の変化（テックリーダーが framework リポジトリで開発することになる） | Phase 0 で権限・レビュー体制を合意。必要なら Organization への移管も選択肢 |
-| マルチCLI維持による保守コスト増（origin 機能 × 3 CLI の検証マトリクス） | CLI 別機能マトリクスで「保証範囲」を明文化し、codex/antigravity はコアワークフローのみサポートと割り切る。CI での生成テストは claude を主対象に |
-| 統合中に origin 側の開発が進んで衝突 | Phase 0 で凍結ルールを合意（統合期間中の origin 新機能は framework の統合ブランチへ直接） |
-| TEAM.md 生成化で origin ユーザーの手動編集フローが壊れる | 生成後の TEAM.md は現行と同一書式を維持。設定変更手段が「直接編集」から「config 編集 + --update」に変わることのみ周知 |
+| 上流乖離: origin は今後も進化し、取り込み後に差が開く | 追従義務なしと割り切る。取り込みコミットを記録し、必要時に `git log {コミット}..` で差分レビューして有用な改善だけ手動移植 |
+| ライセンス・出典 | origin は MIT。LICENSE への出典表記と取り込みコミットの記録で対応 |
+| マルチCLI維持による保守コスト増（origin 機能 × 3 CLI の検証マトリクス） | CLI 別機能マトリクスで「保証範囲」を明文化し、codex/antigravity はコアワークフローのみサポートと割り切る。検証は claude を主対象に |
+| TEAM.md 生成化による設定フローの変化 | 生成後の TEAM.md は現行 origin と同一書式を維持。設定変更手段は「config 編集 + --update」に一本化 |
 | 7プロジェクトのロール名リネームで過去の成果物参照が切れる | 移行スクリプトでディレクトリごとリネームし、参照パスも一括置換 |
-| ペルソナ・Co-Authored-By 禁止が framework 側プロジェクトにも及ぶ | 仕様として受け入れる（Phase 0 で最終確認） |

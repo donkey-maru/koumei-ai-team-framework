@@ -1,12 +1,11 @@
 # koumei 統合検討資料: koumei-origin × koumei-ai-team-framework 機能比較
 
-> 目的: 2つのマルチエージェント開発フレームワークの統合方針を決めるための比較資料。
-> テックリーダーとの合意形成用。
+> 目的: 2つのマルチエージェント開発フレームワークの機能比較（統合方針検討の基礎資料）。
 >
-> - **origin** = `kuruusuniku/koumei`（テックリーダー運用。以下 origin）
-> - **framework** = `donkey-maru/koumei-ai-team-framework`（以下 framework）
+> - **origin** = `kuruusuniku/koumei`（上流OSS・MIT。以下 origin）
+> - **framework** = `donkey-maru/koumei-ai-team-framework`（本リポジトリ。以下 framework）
 >
-> 両リポジトリとも現在も活発に開発中（origin: PR 13件マージ済み、framework: PR 6件マージ済み）。
+> **統合方針・実行計画は `integration-proposal-origin-base.md` を参照**（本資料は比較のみ）。
 
 ---
 
@@ -111,7 +110,7 @@
 >
 > この設計は origin 互換化の第一歩を兼ねる。
 
-### 2.9 規約の衝突（統合時に必ず決めること）
+### 2.9 規約の相違（統合方針の決定対象）
 
 | 項目 | origin | framework |
 |---|---|---|
@@ -120,36 +119,17 @@
 | 設定変更の手段 | TEAM.md 直接編集（ただし hook がブロック → 手動解除前提） | config 編集 + `--update` 再生成 |
 | ペルソナ | 諸葛孔明フル装備（口調・軍事メタファー） | なし（中立） |
 
----
-
-## 3. 統合ステップ案
-
-| Phase | 内容 | 成果物 |
-|---|---|---|
-| 0 | **合意形成**（本資料でテックリーダーと協議）: ベースリポジトリ / 命名 / 規約衝突の裁定 / 凍結ルール | 決定事項リスト |
-| 1 | 基盤統一: framework の setup.sh / config 機構をベースに、origin のロール定義・ルール文書（rules.md / phases.md / error-handling.md）を取り込み | 統合ブランチ |
-| 2 | 成果物2層化（合意済み設計の実装）: `.agents/` 作業層 + `docs-official` 公式層 | テンプレート改修PR |
-| 3 | origin 機能の段階移植（1機能1PR）: ① Hooks → ② レビュー拡張（--security / --second-opinion / タイムアウトFB）→ ③ 外部CLIモデル・委譲 → ④ マルチタスク | 機能PR群 |
-| 4 | 移行: framework 利用7プロジェクトは `--update`/`--reconfig`、origin 利用プロジェクトは移行手順書 + 再セットアップ | 移行ガイド |
+→ いずれも `integration-proposal-origin-base.md` で **origin 準拠を採用** と決定済み。
 
 ---
 
-## 4. 協議チェックリスト（Phase 0 で決めること）
+## 3. 統合方針・実行計画
 
-- [ ] ベース/最終リポジトリをどこに置くか（framework に寄せる / 新リポジトリ）
-- [ ] ロール命名: `koumei` vs `commander`、`devils-advocate` vs `reviewer`
-- [ ] 諸葛孔明ペルソナを標準にするか、config でON/OFFか
-- [ ] 設定方式: `koumei.config.yaml` に一本化するか（origin の TEAM.md 表設定を config に吸収）
-- [ ] モデルデフォルト: フェーズ分割（fable設計/opus実装）を採用するか
-- [ ] コミット規約: Co-Authored-By 禁止 or 許可
-- [ ] `disable-model-invocation` の統一方針
-- [ ] マルチCLI展開（codex/antigravity ターゲット）を統合後も維持するか
-- [ ] 統合作業中の新機能凍結ルール（どちらのリポジトリに入れるか）
-- [ ] 既存利用プロジェクトの移行時期
+`integration-proposal-origin-base.md` に移管（アーキテクチャ=origin準拠、リポジトリ=framework、マルチCLI維持、Phase 1-5 実行計画）。
 
 ---
 
-## 5. 統合時のクリーンアップ項目（備忘）
+## 4. 統合時のクリーンアップ項目（備忘）
 
 - origin `hooks/quality-gate.sh` に他フレームワーク（tachikoma）由来のデッドコード（要削除）
 - framework のレビュー成果物命名の3系統不整合（`-review.md` / `-design-review.md` / `-code-review.md`）を統合時に一本化
