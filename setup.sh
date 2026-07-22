@@ -1556,6 +1556,8 @@ backup_file() {
 write_file() {
   local dest="$1"
   local content="$2"
+  local force="${3:-}"   # "force" 指定時は Git 管理下でもバックアップの上で上書き
+                          # （TEAM.md 等の純粋な生成ファイル用。コミット済みだと更新経路が無くなるため）
 
   if $DRY_RUN; then
     log_info "[DRY-RUN] Would create: ${dest}"
@@ -1564,12 +1566,12 @@ write_file() {
 
   # 既存ファイルがある場合の保護処理
   if [[ -f "$dest" ]]; then
-    if is_git_tracked "$dest"; then
+    if is_git_tracked "$dest" && [[ "$force" != "force" ]]; then
       # Git管理下 → 上書きしない
       log_warn "スキップ: ${dest}（Git管理下の既存ファイル）"
       return
     else
-      # Git管理外 → バックアップしてから上書き
+      # バックアップしてから上書き
       backup_file "$dest"
     fi
   fi
@@ -1626,13 +1628,41 @@ do_clean() {
       log_info "削除: hooks/${hook_name}"
     fi
   done
-  [[ -d hooks ]] && rmdir hooks 2>/dev/null
+  [[ -d hooks ]] && rmdir hooks 2>/dev/null || true
   # .claude/settings.json の hooks 設定は手動で削除が必要な旨を案内
   if [[ -f ".claude/settings.json" ]] && command -v jq &>/dev/null && jq -e '.hooks' .claude/settings.json >/dev/null 2>&1; then
     log_warn ".claude/settings.json の hooks 設定は自動削除しません。不要なら手動で削除してください。"
   fi
 
   log_info "クリーン完了"
+}
+
+# 旧レイアウト（origin 統合前: commander/reviewer ロール・koumei-run スキル）の残骸を検出・整理
+cleanup_legacy_layout() {
+  # 旧 koumei-run スキル（純粋な生成物なので Git 管理外なら自動削除）
+  for skills_base in ".claude/skills" ".codex/skills" ".agents/skills"; do
+    local old_run="${skills_base}/${SKILL_PREFIX}-run"
+    if [[ -d "$old_run" ]]; then
+      if [[ -n "$(git ls-files "$old_run" 2>/dev/null)" ]]; then
+        log_warn "旧スキル ${old_run} が Git 管理下に残っています。/${SKILL_PREFIX}-run は廃止されたため git rm -r で削除してください。"
+      elif $DRY_RUN; then
+        log_info "[DRY-RUN] Would remove legacy skill: ${old_run}"
+      else
+        rm -rf "$old_run"
+        log_info "削除: ${old_run}（廃止された旧スキル）"
+      fi
+    fi
+  done
+
+  # 旧ロールワークスペース（ユーザー成果物を含む可能性があるため自動削除しない）
+  local legacy_found=false
+  for old_role in commander reviewer; do
+    [[ -d ".agents/${old_role}" ]] && legacy_found=true
+  done
+  if $legacy_found; then
+    log_warn "旧レイアウトのワークスペース（.agents/commander/ または .agents/reviewer/）が残っています。"
+    log_warn "必要な成果物を .agents/koumei/ / .agents/devils-advocate/ へ移した上で、旧ディレクトリを手動で削除してください。"
+  fi
 }
 
 do_setup() {
@@ -1645,6 +1675,9 @@ do_setup() {
     log_step "初回セットアップ開始..."
   fi
 
+  # 旧レイアウトの残骸チェック
+  cleanup_legacy_layout
+
   # --- エージェント定義の展開 ---
   log_step "エージェント定義を展開中..."
 
@@ -1653,7 +1686,9 @@ do_setup() {
   team_content=$(cat "${TEMPLATES_DIR}/agents/TEAM.md.tmpl")
   team_content=$(process_template "$team_content")
   team_content=$(process_conditions "$team_content")
-  write_file ".agents/TEAM.md" "$team_content"
+  # TEAM.md は純粋な生成ファイル（quality-gate hook が直接編集をブロックし、
+  # マルチタスク機能は .agents/ のコミットを要求する）ため、Git 管理下でも強制再生成する
+  write_file ".agents/TEAM.md" "$team_content" "force"
 
   # ロール展開（コア: koumei/tech-lead/devils-advocate、オプション: analyst/ux-designer）
   for role_dir in koumei tech-lead devils-advocate analyst ux-designer; do
@@ -1784,7 +1819,10 @@ do_setup() {
       hook_name=$(basename "$hook_file")
       hook_content=$(cat "$hook_file")
       write_file "hooks/${hook_name}" "$hook_content"
-      [[ -f "hooks/${hook_name}" ]] && chmod +x "hooks/${hook_name}"
+      # write_file がスキップしたファイル（Git管理下）や dry-run 中は触らない
+      if ! $DRY_RUN && [[ -f "hooks/${hook_name}" ]] && ! is_git_tracked "hooks/${hook_name}"; then
+        chmod +x "hooks/${hook_name}"
+      fi
     done
 
     # settings.json（hooks 設定のマージ）

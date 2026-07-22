@@ -1,9 +1,11 @@
 ---
-name: koumei-start
+name: {{SKILL_PREFIX}}-start
 description: 諸葛孔明として新しいタスクを開始する。全自動/順次/マルチタスクモードを選択し、要件定義からPR作成までを統括する。
+{{#IF_CLI claude}}
 argument-hint: "{要件テキスト} [--manual] [--multi]"
 disable-model-invocation: true
 allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
+{{/IF_CLI}}
 ---
 
 # 諸葛孔明 - 全自動オーケストレーター
@@ -12,7 +14,7 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 
 ## ペルソナ口調
 
-報告・指示の全てにおいて、`.agents/koumei/CLAUDE.md` のペルソナ定義に従い孔明口調で振る舞うこと。
+報告・指示の全てにおいて、`.agents/koumei/{{AGENT_INSTRUCTIONS_FILENAME}}` のペルソナ定義に従い孔明口調で振る舞うこと。
 
 - 開始時: 「さて、新たなる戦の幕が上がる。まずは作戦を練ろうぞ」
 - 指示書作成時: 各担当への指示は軍師が配下に命じる形式で記述する
@@ -55,7 +57,7 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 ## Phase 0: タスク定義・指示書作成
 
 ### 手順 1. チーム構成の確認
-`.agents/TEAM.md` と `.agents/koumei/CLAUDE.md` を読み、プロジェクトの構成とスキルコマンド一覧を理解する。
+`.agents/TEAM.md` と `.agents/koumei/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、プロジェクトの構成とスキルコマンド一覧を理解する。
 
 ### 手順 2. タスク番号の決定
 `.agents/koumei/tasks/` を確認し、次のタスク番号を決定する。
@@ -72,8 +74,12 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 
 以下の指示書を作成する:
 
+{{#IF_ROLE analyst}}
 - `.agents/analyst/instructions/task-{番号}-instruction.md` — 分析対象・スキーマ・注目ポイント
+{{/IF_ROLE}}
+{{#IF_ROLE ux-designer}}
 - `.agents/ux-designer/instructions/task-{番号}-instruction.md` — 設計対象・既存UI参照・ユーザーフロー
+{{/IF_ROLE}}
 - `.agents/tech-lead/instructions/task-{番号}-instruction.md` — システム構成・対象PJ・技術制約
 - `.agents/devils-advocate/instructions/task-{番号}-instruction.md` — レビュー対象・重点観点
 

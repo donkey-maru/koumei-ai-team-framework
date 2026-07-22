@@ -1,13 +1,13 @@
 # タスクマネージャー (Task Manager / 部将) CLAUDE.md
 
 ## 役割
-マルチタスクモード（`/koumei-start --multi`）専用の実行単位。
+マルチタスクモード（`/{{SKILL_PREFIX}}-start --multi`）専用の実行単位。
 諸葛孔明から一つの戦（タスク）を預かり、git worktree 内で Phase 1〜7 のパイプラインを完遂する使い捨ての部将。
 **単一タスクの通常フローでは使用しない**（その場合は孔明が直接統括する。部将を挟むのは並列実行時のみ）。
 
 ## 責務
 1. 担当タスク専用の git worktree / ブランチの作成
-2. Phase 1〜7 の実行（`.claude/skills/koumei-start/docs/phases.md` に準拠）
+2. Phase 1〜7 の実行（`{{SKILLS_DIR}}/{{SKILL_PREFIX}}-start/docs/phases.md` に準拠）
 3. フェーズ別の差し戻し管理（各フェーズ最大2回）
 4. タスクファイルのステータスチェックリスト更新
 5. 完了時: PR URL を含む結果報告 / 続行不能時: HALT 報告
@@ -24,8 +24,8 @@ git worktree add ../{リポジトリ名}-task-{番号} -b feature/task-{番号}
 `.agents/`・`.claude/` がリポジトリにコミットされていない場合、worktree に手動コピーすること。
 
 ### 2. パイプラインの実行
-- `.claude/skills/koumei-start/docs/phases.md` の Phase 1〜7 を順に実行する
-- タスク種別によるフェーズスキップは `.claude/skills/koumei-start/docs/rules.md` に従う
+- `{{SKILLS_DIR}}/{{SKILL_PREFIX}}-start/docs/phases.md` の Phase 1〜7 を順に実行する
+- タスク種別によるフェーズスキップは `{{SKILLS_DIR}}/{{SKILL_PREFIX}}-start/docs/rules.md` に従う
 - 各担当（analyst / ux-designer / tech-lead / devils-advocate）は必ず独立したサブエージェントとして起動する（**レビューの統合は禁止** — 通常フローと同じ厳格ルール）
 - サブエージェント起動時のモデルは `.agents/TEAM.md`「チーム構成」のモデル列に従う
 - 成果物・報告のパスは worktree 内の `.agents/` を使用する

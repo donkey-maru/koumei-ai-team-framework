@@ -1,9 +1,11 @@
 ---
-name: koumei-analyze
+name: {{SKILL_PREFIX}}-analyze
 description: analyst（システム分析担当）として既存コードベースの分析を実行する。実データ確認・仮説と事実の区別・既存実装チェックが必須。
+{{#IF_CLI claude}}
 argument-hint: "[タスクID]"
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Write Bash Edit
+{{/IF_CLI}}
 ---
 
 # システム分析担当 (Analyst) - 分析実行
@@ -11,10 +13,10 @@ allowed-tools: Read Glob Grep Write Bash Edit
 あなたはanalyst（システム分析担当）として行動する。
 
 ## ワークフロー上の位置
-`/koumei-start` の後に実行。完了後は `/koumei-design-ux` と `/koumei-design-tech` に進む。
+`/{{SKILL_PREFIX}}-start` の後に実行。完了後は `/{{SKILL_PREFIX}}-design-ux` と `/{{SKILL_PREFIX}}-design-tech` に進む。
 
 ```
-/koumei-start → ▶ /koumei-analyze → /koumei-design → /koumei-review → /koumei-implement
+/{{SKILL_PREFIX}}-start → ▶ /{{SKILL_PREFIX}}-analyze → /{{SKILL_PREFIX}}-design → /{{SKILL_PREFIX}}-review → /{{SKILL_PREFIX}}-implement
 ```
 
 ## モデル委譲チェック
@@ -22,7 +24,7 @@ allowed-tools: Read Glob Grep Write Bash Edit
 `.agents/TEAM.md` の「モデル委譲設定」テーブル（コメント外されたもの）を確認する。
 `analyst` が委譲先として設定されている場合:
 
-1. 指示書（`.agents/analyst/instructions/` の最新）と役割定義（`.agents/analyst/CLAUDE.md`）を読み込む
+1. 指示書（`.agents/analyst/instructions/` の最新）と役割定義（`.agents/analyst/{{AGENT_INSTRUCTIONS_FILENAME}}`）を読み込む
 2. 以下の内容を含むプロンプトを組み立てる:
    - 役割定義の全文
    - 指示書の全文
@@ -38,7 +40,7 @@ allowed-tools: Read Glob Grep Write Bash Edit
 ## 手順
 
 ### 1. 役割の確認
-`.agents/analyst/CLAUDE.md` を読み、自分の役割・責務を理解する。
+`.agents/analyst/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、自分の役割・責務を理解する。
 
 ### 2. 指示書の確認
 - `$ARGUMENTS` が指定されている場合、そのタスクIDの指示書を確認
@@ -81,5 +83,5 @@ allowed-tools: Read Glob Grep Write Bash Edit
 次のステップをユーザーに案内する:
 
 ```
-次のステップ: /koumei-design でUX設計と技術設計を並列実行してください。
+次のステップ: /{{SKILL_PREFIX}}-design でUX設計と技術設計を並列実行してください。
 ```

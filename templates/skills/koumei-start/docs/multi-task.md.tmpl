@@ -1,6 +1,6 @@
 # マルチタスクモード（--multi）
 
-`/koumei-start {要件} --multi` で起動する。独立した複数タスクを task-manager（部将）に預け、並列で Phase 1〜7 を完遂させる。
+`/{{SKILL_PREFIX}}-start {要件} --multi` で起動する。独立した複数タスクを task-manager（部将）に預け、並列で Phase 1〜7 を完遂させる。
 
 ## 前提条件
 
@@ -40,9 +40,9 @@ AskUserQuestion で分割計画（タスク一覧・種別・並列/直列グル
 並列グループごとに、**1つのメッセージ内で全タスク分の Agent tool 呼び出しを同時に行う**。
 
 各 task-manager のプロンプトに含める内容:
-- `.agents/task-manager/CLAUDE.md` の全文
+- `.agents/task-manager/{{AGENT_INSTRUCTIONS_FILENAME}}` の全文
 - 担当タスク番号、タスク定義ファイルと指示書のパス
-- `.claude/skills/koumei-start/docs/phases.md` と `docs/rules.md` のパス（worktree 内で参照させる）
+- `{{SKILLS_DIR}}/{{SKILL_PREFIX}}-start/docs/phases.md` と `docs/rules.md` のパス（worktree 内で参照させる）
 - HALT 条件と結果報告フォーマットの遵守指示
 
 **注意:**

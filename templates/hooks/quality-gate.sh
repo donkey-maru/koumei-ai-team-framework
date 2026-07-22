@@ -5,7 +5,9 @@
 # ブロック対象:
 #   - .agents/TEAM.md（チーム設定は koumei.config.yaml 編集 + setup.sh --update で再生成する）
 
-FILE_PATH=$(echo "$CLAUDE_TOOL_INPUT" 2>/dev/null | jq -r '.file_path // empty' 2>/dev/null)
+# Claude Code はフック情報を stdin の JSON で渡す（環境変数ではない）
+INPUT=$(cat)
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 if [ -z "$FILE_PATH" ]; then
   exit 0

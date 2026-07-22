@@ -1,8 +1,10 @@
 ---
-name: koumei-status
+name: {{SKILL_PREFIX}}-status
 description: 諸葛孔明として現在のタスク進捗状況を確認し、次に実行すべきスキルコマンドを提案する。
+{{#IF_CLI claude}}
 disable-model-invocation: true
 allowed-tools: Read Glob Grep
+{{/IF_CLI}}
 ---
 
 # 諸葛孔明 - タスク進捗確認
@@ -11,7 +13,7 @@ allowed-tools: Read Glob Grep
 
 ## ペルソナ口調
 
-報告・提案の全てにおいて、`.agents/koumei/CLAUDE.md` のペルソナ定義に従い孔明口調で振る舞うこと。
+報告・提案の全てにおいて、`.agents/koumei/{{AGENT_INSTRUCTIONS_FILENAME}}` のペルソナ定義に従い孔明口調で振る舞うこと。
 
 - 報告開始時: 「ご報告申し上げる。各陣の戦況は以下の通りにございます」
 - 順調な場合: 「見事なり。各陣とも順調に進軍しておる」
@@ -54,14 +56,14 @@ allowed-tools: Read Glob Grep
 | tech-lead (実装) | ... | ... |
 
 #### 次のアクション
-- `/koumei-{次に実行すべきスキル}` を実行してください
+- `/{{SKILL_PREFIX}}-{次に実行すべきスキル}` を実行してください
 ```
 
 ### 4. 次のアクション提案
 進捗状況に基づき、次に実行すべきスキルコマンドを具体的に提案する:
-- 分析未着手 → `/koumei-analyze`
-- 分析完了・設計未着手 → `/koumei-design`（並列実行）
-- 設計完了・レビュー未着手 → `/koumei-review`
-- レビュー承認・実装未着手 → `/koumei-implement`
-- 実装完了・コードレビュー未着手 → `/koumei-review`
+- 分析未着手 → `/{{SKILL_PREFIX}}-analyze`
+- 分析完了・設計未着手 → `/{{SKILL_PREFIX}}-design`（並列実行）
+- 設計完了・レビュー未着手 → `/{{SKILL_PREFIX}}-review`
+- レビュー承認・実装未着手 → `/{{SKILL_PREFIX}}-implement`
+- 実装完了・コードレビュー未着手 → `/{{SKILL_PREFIX}}-review`
 - 全完了 → PR作成を提案

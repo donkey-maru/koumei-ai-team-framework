@@ -2,7 +2,9 @@
 # 孔明エージェントチーム — 自動フォーマット
 # PostToolUse(Write|Edit|MultiEdit) で呼ばれ、対象ファイルをフォーマットする
 
-FILE_PATH=$(echo "$CLAUDE_TOOL_INPUT" 2>/dev/null | jq -r '.file_path // empty' 2>/dev/null)
+# Claude Code はフック情報を stdin の JSON で渡す（環境変数ではない）
+INPUT=$(cat)
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 if [ -z "$FILE_PATH" ] || [ ! -f "$FILE_PATH" ]; then
   exit 0
