@@ -106,15 +106,15 @@ prompt_yn() {
 # ロール選択ウィザード（説明付き）
 # 結果はグローバル変数 WIZARD_SELECTED_ROLES に格納
 wizard_select_roles() {
-  WIZARD_SELECTED_ROLES=("commander" "tech-lead" "reviewer")
+  WIZARD_SELECTED_ROLES=("koumei" "tech-lead" "devils-advocate")
 
   echo ""
   echo -e "${BLUE}━━━ ロール構成 ━━━${NC}"
   echo ""
   echo -e "${GREEN}【コアロール（必須）】${NC}"
-  echo -e "  ✅ ${GREEN}commander${NC}   … 全体統括・タスク分割・指示出し・最終判断を行う指揮者"
-  echo -e "  ✅ ${GREEN}tech-lead${NC}   … 技術設計・アーキテクチャ決定・実装を担当"
-  echo -e "  ✅ ${GREEN}reviewer${NC}    … 設計書・コードの品質レビュー・問題提起を担当"
+  echo -e "  ✅ ${GREEN}koumei${NC}          … 全体統括・タスク分割・指示出し・最終判断を行う最高指揮者（諸葛孔明）"
+  echo -e "  ✅ ${GREEN}tech-lead${NC}       … 技術設計・アーキテクチャ決定・実装を担当"
+  echo -e "  ✅ ${GREEN}devils-advocate${NC} … 全成果物のレビュー・問題提起を担当する悪魔の代弁者"
   echo ""
   echo -e "${YELLOW}【オプションロール】${NC}"
   echo ""
@@ -471,13 +471,14 @@ run_wizard() {
   echo ""
   local cli_choice
   cli_choice=$(prompt_input "ターゲットCLI [1-3]" "1")
-  # wizard_default_model: commander/analyst/ux-designer 用
-  # wizard_lead_model: tech-lead/reviewer 用（設計・レビューは負荷が高いため上位モデルを既定にする）
-  local wizard_target_cli wizard_default_model wizard_lead_model
+  # wizard_default_model: koumei/analyst/ux-designer 用
+  # wizard_design_model: tech-lead設計・devils-advocate 用（判断のレバレッジが高い箇所に上位モデル）
+  # wizard_impl_model:   tech-lead実装 用（トークン量が多いため設計より1段下）
+  local wizard_target_cli wizard_default_model wizard_design_model wizard_impl_model
   case "$cli_choice" in
-    2) wizard_target_cli="codex";       wizard_default_model="gpt-5.3-codex"; wizard_lead_model="gpt-5.3-codex" ;;
-    3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro"; wizard_lead_model="gemini-3.5-pro" ;;
-    *) wizard_target_cli="claude";      wizard_default_model="sonnet"; wizard_lead_model="opus" ;;
+    2) wizard_target_cli="codex";       wizard_default_model="gpt-5.3-codex"; wizard_design_model="gpt-5.3-codex"; wizard_impl_model="gpt-5.3-codex" ;;
+    3) wizard_target_cli="antigravity"; wizard_default_model="gemini-3.5-pro"; wizard_design_model="gemini-3.5-pro"; wizard_impl_model="gemini-3.5-pro" ;;
+    *) wizard_target_cli="claude";      wizard_default_model="sonnet"; wizard_design_model="fable"; wizard_impl_model="opus" ;;
   esac
 
   # --- スキルプレフィックス ---
@@ -485,20 +486,20 @@ run_wizard() {
   echo -e "${BLUE}━━━ スキルコマンド設定 ━━━${NC}"
   echo -e "  ${YELLOW}スキルコマンドの接頭辞です。${NC}"
   echo -e "  ${YELLOW}この接頭辞でスキルディレクトリ名とコマンド名が決まります。${NC}"
-  echo -e "  例: 「koumei」→ /koumei-start, /koumei-run"
-  echo -e "  例: 「km」→ /km-start, /km-run"
-  echo -e "  例: 「dev」→ /dev-start, /dev-run"
+  echo -e "  例: 「koumei」→ /koumei-start, /koumei-review"
+  echo -e "  例: 「km」→ /km-start, /km-review"
+  echo -e "  例: 「dev」→ /dev-start, /dev-review"
   local skill_prefix
   skill_prefix=$(prompt_input "スキルプレフィックス" "koumei")
 
   # --- 指揮者 ---
   echo ""
   echo -e "${BLUE}━━━ 指揮者設定 ━━━${NC}"
-  echo -e "  ${YELLOW}AIチームの指揮者（commander）のコードネームです。${NC}"
+  echo -e "  ${YELLOW}AIチームの最高指揮者（koumei）のコードネームです。${NC}"
   echo -e "  ${YELLOW}スキル説明やタスク定義書に表示されます。${NC}"
   echo -e "  例: 「諸葛孔明」「Commander」「Archimedes」"
   local commander_name
-  commander_name=$(prompt_input "指揮者の名前" "Commander")
+  commander_name=$(prompt_input "指揮者の名前" "諸葛孔明")
 
   # --- ロール選択 ---
   wizard_select_roles
@@ -555,7 +556,7 @@ migration:
   target_framework: "${mig_target_fw}"
 
 # === ロール構成 ===
-# コアロール（commander, tech-lead, reviewer）は必須
+# コアロール（koumei, tech-lead, devils-advocate）は必須
 # setup.sh --roles で後から変更可能
 roles:
 ${roles_yaml}
@@ -568,12 +569,19 @@ commander:
   name: "${commander_name}"
 
 # === 各ロール モデル設定 ===
+# tech-lead はフェーズ分割（設計/実装）。高単価モデルは判断のレバレッジが高い箇所（設計・レビュー判定）に置く
 models:
-  commander: "${wizard_default_model}"
-  tech-lead: "${wizard_lead_model}"
-  reviewer: "${wizard_lead_model}"
+  koumei: "${wizard_default_model}"
   analyst: "${wizard_default_model}"
   ux-designer: "${wizard_default_model}"
+  tech-lead-design: "${wizard_design_model}"
+  tech-lead-implement: "${wizard_impl_model}"
+  devils-advocate: "${wizard_design_model}"
+
+# === レビュー設定 ===
+review:
+  mode: "default"                    # default（codex→claude） | economy（codex→lmstudio→claude） | claude-only
+  timeout: 600                       # 外部CLIレビューのタイムアウト（秒）。超過で次順位モデルにフォールバック
 
 # === 技術スタック ===
 tech_stack:
@@ -602,9 +610,9 @@ git:
 
 # === カスタム指示（各ロールの指示ファイルに追記される） ===
 custom_instructions:
-  commander: ""
+  koumei: ""
   tech-lead: ""
-  reviewer: ""
+  devils-advocate: ""
   analyst: ""
   ux-designer: ""
 
@@ -756,7 +764,7 @@ cleanup_previous_cli() {
 
   # 旧CLI用のエージェント指示ファイル名が新CLIと異なる場合は削除（do_setup で新ファイル名のものを生成）
   if [[ "$previous_agent_filename" != "$AGENT_INSTRUCTIONS_FILENAME" ]]; then
-    for role_dir in commander tech-lead reviewer analyst ux-designer; do
+    for role_dir in koumei tech-lead devils-advocate analyst ux-designer task-manager; do
       local old_file=".agents/${role_dir}/${previous_agent_filename}"
       if [[ -f "$old_file" ]]; then
         if is_git_tracked "$old_file"; then
@@ -998,37 +1006,50 @@ load_config() {
 
   # 指揮者設定
   COMMANDER_NAME=$(yaml_get "commander.name")
-  COMMANDER_NAME="${COMMANDER_NAME:-Commander}"
+  COMMANDER_NAME="${COMMANDER_NAME:-諸葛孔明}"
 
   # モデル設定
-  MODEL_COMMANDER=$(yaml_get "models.commander")
-  MODEL_TECH_LEAD=$(yaml_get "models.tech-lead")
-  MODEL_REVIEWER=$(yaml_get "models.reviewer")
+  MODEL_KOUMEI=$(yaml_get "models.koumei")
   MODEL_ANALYST=$(yaml_get "models.analyst")
   MODEL_UX_DESIGNER=$(yaml_get "models.ux-designer")
+  MODEL_TECH_LEAD_DESIGN=$(yaml_get "models.tech-lead-design")
+  MODEL_TECH_LEAD_IMPLEMENT=$(yaml_get "models.tech-lead-implement")
+  MODEL_DEVILS_ADVOCATE=$(yaml_get "models.devils-advocate")
   case "$TARGET_CLI" in
     codex)
-      MODEL_COMMANDER="${MODEL_COMMANDER:-gpt-5.3-codex}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gpt-5.3-codex}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-gpt-5.3-codex}"
+      MODEL_KOUMEI="${MODEL_KOUMEI:-gpt-5.3-codex}"
       MODEL_ANALYST="${MODEL_ANALYST:-gpt-5.3-codex}"
       MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gpt-5.3-codex}"
+      MODEL_TECH_LEAD_DESIGN="${MODEL_TECH_LEAD_DESIGN:-gpt-5.3-codex}"
+      MODEL_TECH_LEAD_IMPLEMENT="${MODEL_TECH_LEAD_IMPLEMENT:-gpt-5.3-codex}"
+      MODEL_DEVILS_ADVOCATE="${MODEL_DEVILS_ADVOCATE:-gpt-5.3-codex}"
       ;;
     antigravity)
-      MODEL_COMMANDER="${MODEL_COMMANDER:-gemini-3.5-pro}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-gemini-3.5-pro}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-gemini-3.5-pro}"
+      MODEL_KOUMEI="${MODEL_KOUMEI:-gemini-3.5-pro}"
       MODEL_ANALYST="${MODEL_ANALYST:-gemini-3.5-flash}"
       MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-gemini-3.5-flash}"
+      MODEL_TECH_LEAD_DESIGN="${MODEL_TECH_LEAD_DESIGN:-gemini-3.5-pro}"
+      MODEL_TECH_LEAD_IMPLEMENT="${MODEL_TECH_LEAD_IMPLEMENT:-gemini-3.5-pro}"
+      MODEL_DEVILS_ADVOCATE="${MODEL_DEVILS_ADVOCATE:-gemini-3.5-pro}"
       ;;
     *)
-      MODEL_COMMANDER="${MODEL_COMMANDER:-sonnet}"
-      MODEL_TECH_LEAD="${MODEL_TECH_LEAD:-opus}"
-      MODEL_REVIEWER="${MODEL_REVIEWER:-opus}"
+      MODEL_KOUMEI="${MODEL_KOUMEI:-sonnet}"
       MODEL_ANALYST="${MODEL_ANALYST:-sonnet}"
       MODEL_UX_DESIGNER="${MODEL_UX_DESIGNER:-sonnet}"
+      MODEL_TECH_LEAD_DESIGN="${MODEL_TECH_LEAD_DESIGN:-fable}"
+      MODEL_TECH_LEAD_IMPLEMENT="${MODEL_TECH_LEAD_IMPLEMENT:-opus}"
+      MODEL_DEVILS_ADVOCATE="${MODEL_DEVILS_ADVOCATE:-fable}"
       ;;
   esac
+
+  # レビュー設定
+  REVIEW_MODE=$(yaml_get "review.mode")
+  REVIEW_MODE="${REVIEW_MODE:-default}"
+  REVIEW_TIMEOUT=$(yaml_get "review.timeout")
+  REVIEW_TIMEOUT="${REVIEW_TIMEOUT:-600}"
+
+  # 開発規約の追加行（任意）
+  DEV_RULES=$(yaml_get_multiline "git" "dev_rules")
 
   # 技術スタック
   TECH_LANGUAGE=$(yaml_get "tech_stack.language")
@@ -1066,9 +1087,9 @@ load_config() {
   done < <(yaml_get_array "roles")
 
   # カスタム指示
-  CUSTOM_INSTRUCTIONS_COMMANDER=$(yaml_get_multiline "custom_instructions" "commander")
+  CUSTOM_INSTRUCTIONS_KOUMEI=$(yaml_get_multiline "custom_instructions" "koumei")
   CUSTOM_INSTRUCTIONS_TECH_LEAD=$(yaml_get_multiline "custom_instructions" "tech-lead")
-  CUSTOM_INSTRUCTIONS_REVIEWER=$(yaml_get_multiline "custom_instructions" "reviewer")
+  CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE=$(yaml_get_multiline "custom_instructions" "devils-advocate")
   CUSTOM_INSTRUCTIONS_ANALYST=$(yaml_get_multiline "custom_instructions" "analyst")
   CUSTOM_INSTRUCTIONS_UX_DESIGNER=$(yaml_get_multiline "custom_instructions" "ux-designer")
 
@@ -1103,11 +1124,23 @@ load_config() {
   export KOUMEI_VAR_GIT_MAIN_BRANCH="$GIT_MAIN_BRANCH"
   export KOUMEI_VAR_GIT_DEVELOP_BRANCH="$GIT_DEVELOP_BRANCH"
   export KOUMEI_VAR_GIT_BRANCH_PATTERN="$GIT_BRANCH_PATTERN"
-  export KOUMEI_VAR_MODEL_COMMANDER="$MODEL_COMMANDER"
-  export KOUMEI_VAR_MODEL_TECH_LEAD="$MODEL_TECH_LEAD"
-  export KOUMEI_VAR_MODEL_REVIEWER="$MODEL_REVIEWER"
+  export KOUMEI_VAR_MODEL_KOUMEI="$MODEL_KOUMEI"
   export KOUMEI_VAR_MODEL_ANALYST="$MODEL_ANALYST"
   export KOUMEI_VAR_MODEL_UX_DESIGNER="$MODEL_UX_DESIGNER"
+  export KOUMEI_VAR_MODEL_TECH_LEAD_DESIGN="$MODEL_TECH_LEAD_DESIGN"
+  export KOUMEI_VAR_MODEL_TECH_LEAD_IMPLEMENT="$MODEL_TECH_LEAD_IMPLEMENT"
+  export KOUMEI_VAR_MODEL_DEVILS_ADVOCATE="$MODEL_DEVILS_ADVOCATE"
+  export KOUMEI_VAR_REVIEW_MODE="$REVIEW_MODE"
+  export KOUMEI_VAR_REVIEW_TIMEOUT="$REVIEW_TIMEOUT"
+  # origin 由来テンプレートの互換プレースホルダ
+  export KOUMEI_VAR_FRAMEWORK="$TECH_FRAMEWORK"
+  export KOUMEI_VAR_FRAMEWORK_1="$TECH_FRAMEWORK"
+  export KOUMEI_VAR_PROJECT_1="$PROJECT_NAME"
+  export KOUMEI_VAR_PROJECT_1_PATH="$PROJECT_PATH"
+  export KOUMEI_VAR_TECH_STACK_1="${TECH_LANGUAGE}${TECH_FRAMEWORK:+ / ${TECH_FRAMEWORK}}"
+  export KOUMEI_VAR_UI_FRAMEWORK="$TECH_UI_LIBRARY"
+  export KOUMEI_VAR_STYLING="$TECH_STYLING"
+  export KOUMEI_VAR_EXISTING_COMPONENTS="$TECH_UI_LIBRARY"
   export KOUMEI_VAR_OUTPUT_DIR="$OUTPUT_DIR"
   export KOUMEI_VAR_OUTPUT_FORMAT="$OUTPUT_FORMAT"
   export KOUMEI_VAR_MIGRATION_SOURCE_PATH="$MIGRATION_SOURCE_PATH"
@@ -1142,13 +1175,14 @@ CONFIG_REQUIRED_KEYS=(
   "roles"
   "target_cli" "skill_prefix"
   "commander.name"
-  "models.commander" "models.tech-lead" "models.reviewer"
+  "models.koumei" "models.tech-lead-design" "models.tech-lead-implement" "models.devils-advocate"
+  "review.mode" "review.timeout"
   "tech_stack.language" "tech_stack.framework" "tech_stack.ui_library" "tech_stack.styling"
   "tech_stack.database" "tech_stack.testing"
   "tech_stack.build_command" "tech_stack.test_command" "tech_stack.check_command"
   "git.main_branch" "git.develop_branch" "git.branch_pattern"
   "output.dir" "output.format" "output.instructions"
-  "custom_instructions.commander" "custom_instructions.tech-lead" "custom_instructions.reviewer"
+  "custom_instructions.koumei" "custom_instructions.tech-lead" "custom_instructions.devils-advocate"
   "reference_docs"
 )
 
@@ -1223,7 +1257,7 @@ generate_tech_stack_table() {
 generate_active_roles_list() {
   local list=""
   for role in "${ROLES[@]}"; do
-    [[ "$role" == "commander" ]] && continue
+    [[ "$role" == "koumei" ]] && continue
     [[ -n "$list" ]] && list+=", "
     list+="$role"
   done
@@ -1294,9 +1328,10 @@ process_template() {
   generate_next_step_after_start > "${vars_dir}/NEXT_STEP_AFTER_START"
   generate_next_step_after_analyze > "${vars_dir}/NEXT_STEP_AFTER_ANALYZE"
   generate_next_step_after_design_tech > "${vars_dir}/NEXT_STEP_AFTER_DESIGN_TECH"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_COMMANDER" > "${vars_dir}/CUSTOM_INSTRUCTIONS_COMMANDER"
+  printf '%s' "$CUSTOM_INSTRUCTIONS_KOUMEI" > "${vars_dir}/CUSTOM_INSTRUCTIONS_KOUMEI"
   printf '%s' "$CUSTOM_INSTRUCTIONS_TECH_LEAD" > "${vars_dir}/CUSTOM_INSTRUCTIONS_TECH_LEAD"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_REVIEWER" > "${vars_dir}/CUSTOM_INSTRUCTIONS_REVIEWER"
+  printf '%s' "$CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE" > "${vars_dir}/CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE"
+  printf '%s' "$DEV_RULES" > "${vars_dir}/DEV_RULES"
   printf '%s' "$CUSTOM_INSTRUCTIONS_ANALYST" > "${vars_dir}/CUSTOM_INSTRUCTIONS_ANALYST"
   printf '%s' "$CUSTOM_INSTRUCTIONS_UX_DESIGNER" > "${vars_dir}/CUSTOM_INSTRUCTIONS_UX_DESIGNER"
   printf '%s' "$REFERENCE_DOCS" > "${vars_dir}/REFERENCE_DOCS"
@@ -1521,6 +1556,8 @@ backup_file() {
 write_file() {
   local dest="$1"
   local content="$2"
+  local force="${3:-}"   # "force" 指定時は Git 管理下でもバックアップの上で上書き
+                          # （TEAM.md 等の純粋な生成ファイル用。コミット済みだと更新経路が無くなるため）
 
   if $DRY_RUN; then
     log_info "[DRY-RUN] Would create: ${dest}"
@@ -1529,12 +1566,12 @@ write_file() {
 
   # 既存ファイルがある場合の保護処理
   if [[ -f "$dest" ]]; then
-    if is_git_tracked "$dest"; then
+    if is_git_tracked "$dest" && [[ "$force" != "force" ]]; then
       # Git管理下 → 上書きしない
       log_warn "スキップ: ${dest}（Git管理下の既存ファイル）"
       return
     else
-      # Git管理外 → バックアップしてから上書き
+      # バックアップしてから上書き
       backup_file "$dest"
     fi
   fi
@@ -1584,7 +1621,48 @@ do_clean() {
     log_info "削除: .agents/"
   fi
 
+  # Hooks（本フレームワークが配布した4スクリプトのみ削除）
+  for hook_name in quality-gate.sh log-operation.sh auto-format.sh notify-phase.sh; do
+    if [[ -f "hooks/${hook_name}" ]]; then
+      rm -f "hooks/${hook_name}"
+      log_info "削除: hooks/${hook_name}"
+    fi
+  done
+  [[ -d hooks ]] && rmdir hooks 2>/dev/null || true
+  # .claude/settings.json の hooks 設定は手動で削除が必要な旨を案内
+  if [[ -f ".claude/settings.json" ]] && command -v jq &>/dev/null && jq -e '.hooks' .claude/settings.json >/dev/null 2>&1; then
+    log_warn ".claude/settings.json の hooks 設定は自動削除しません。不要なら手動で削除してください。"
+  fi
+
   log_info "クリーン完了"
+}
+
+# 旧レイアウト（origin 統合前: commander/reviewer ロール・koumei-run スキル）の残骸を検出・整理
+cleanup_legacy_layout() {
+  # 旧 koumei-run スキル（純粋な生成物なので Git 管理外なら自動削除）
+  for skills_base in ".claude/skills" ".codex/skills" ".agents/skills"; do
+    local old_run="${skills_base}/${SKILL_PREFIX}-run"
+    if [[ -d "$old_run" ]]; then
+      if [[ -n "$(git ls-files "$old_run" 2>/dev/null)" ]]; then
+        log_warn "旧スキル ${old_run} が Git 管理下に残っています。/${SKILL_PREFIX}-run は廃止されたため git rm -r で削除してください。"
+      elif $DRY_RUN; then
+        log_info "[DRY-RUN] Would remove legacy skill: ${old_run}"
+      else
+        rm -rf "$old_run"
+        log_info "削除: ${old_run}（廃止された旧スキル）"
+      fi
+    fi
+  done
+
+  # 旧ロールワークスペース（ユーザー成果物を含む可能性があるため自動削除しない）
+  local legacy_found=false
+  for old_role in commander reviewer; do
+    [[ -d ".agents/${old_role}" ]] && legacy_found=true
+  done
+  if $legacy_found; then
+    log_warn "旧レイアウトのワークスペース（.agents/commander/ または .agents/reviewer/）が残っています。"
+    log_warn "必要な成果物を .agents/koumei/ / .agents/devils-advocate/ へ移した上で、旧ディレクトリを手動で削除してください。"
+  fi
 }
 
 do_setup() {
@@ -1597,6 +1675,9 @@ do_setup() {
     log_step "初回セットアップ開始..."
   fi
 
+  # 旧レイアウトの残骸チェック
+  cleanup_legacy_layout
+
   # --- エージェント定義の展開 ---
   log_step "エージェント定義を展開中..."
 
@@ -1605,61 +1686,104 @@ do_setup() {
   team_content=$(cat "${TEMPLATES_DIR}/agents/TEAM.md.tmpl")
   team_content=$(process_template "$team_content")
   team_content=$(process_conditions "$team_content")
-  write_file ".agents/TEAM.md" "$team_content"
+  # TEAM.md は純粋な生成ファイル（quality-gate hook が直接編集をブロックし、
+  # マルチタスク機能は .agents/ のコミットを要求する）ため、Git 管理下でも強制再生成する
+  write_file ".agents/TEAM.md" "$team_content" "force"
 
-  # コアロール
-  for role_dir in commander tech-lead reviewer; do
-    local tmpl="${TEMPLATES_DIR}/agents/core/${role_dir}/CLAUDE.md.tmpl"
+  # ロール展開（コア: koumei/tech-lead/devils-advocate、オプション: analyst/ux-designer）
+  for role_dir in koumei tech-lead devils-advocate analyst ux-designer; do
+    # オプションロールは有効時のみ
+    case "$role_dir" in
+      analyst|ux-designer) has_role "$role_dir" || continue ;;
+    esac
+
+    local tmpl="${TEMPLATES_DIR}/agents/${role_dir}/CLAUDE.md.tmpl"
     if [[ -f "$tmpl" ]]; then
       local content
       content=$(cat "$tmpl")
       content=$(process_template "$content")
       content=$(process_conditions "$content")
+
+      # カスタム指示の注入（origin テンプレートにはプレースホルダが無いため末尾に追記）
+      local ci=""
+      case "$role_dir" in
+        koumei)          ci="$CUSTOM_INSTRUCTIONS_KOUMEI" ;;
+        tech-lead)       ci="$CUSTOM_INSTRUCTIONS_TECH_LEAD" ;;
+        devils-advocate) ci="$CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE" ;;
+        analyst)         ci="$CUSTOM_INSTRUCTIONS_ANALYST" ;;
+        ux-designer)     ci="$CUSTOM_INSTRUCTIONS_UX_DESIGNER" ;;
+      esac
+      if [[ -n "$ci" ]]; then
+        content+=$'\n\n'"## プロジェクト固有の指示"$'\n\n'"$ci"
+      fi
+
       write_file ".agents/${role_dir}/${AGENT_INSTRUCTIONS_FILENAME}" "$content"
     fi
 
-    # 成果物ディレクトリ
+    # ワークスペースディレクトリ
     case "$role_dir" in
-      commander)
-        create_dir_with_gitkeep ".agents/commander/tasks"
-        create_dir_with_gitkeep ".agents/commander/reports"
-        create_dir_with_gitkeep ".agents/commander/requests"
+      koumei)
+        create_dir_with_gitkeep ".agents/koumei/tasks"
+        create_dir_with_gitkeep ".agents/koumei/reports"
+        create_dir_with_gitkeep ".agents/koumei/requests"
         ;;
-      tech-lead)
-        create_dir_with_gitkeep ".agents/tech-lead/instructions"
-        create_dir_with_gitkeep ".agents/tech-lead/deliverables"
+      devils-advocate)
+        create_dir_with_gitkeep ".agents/devils-advocate/instructions"
+        create_dir_with_gitkeep ".agents/devils-advocate/reviews"
         ;;
-      reviewer)
-        create_dir_with_gitkeep ".agents/reviewer/instructions"
-        create_dir_with_gitkeep ".agents/reviewer/reviews"
+      *)
+        create_dir_with_gitkeep ".agents/${role_dir}/instructions"
+        create_dir_with_gitkeep ".agents/${role_dir}/deliverables"
         ;;
     esac
   done
 
-  # オプションロール
-  for role_dir in analyst ux-designer; do
-    if has_role "$role_dir"; then
-      local tmpl="${TEMPLATES_DIR}/agents/optional/${role_dir}/CLAUDE.md.tmpl"
-      if [[ -f "$tmpl" ]]; then
-        local content
-        content=$(cat "$tmpl")
-        content=$(process_template "$content")
-        content=$(process_conditions "$content")
-        write_file ".agents/${role_dir}/${AGENT_INSTRUCTIONS_FILENAME}" "$content"
-      fi
-
-      create_dir_with_gitkeep ".agents/${role_dir}/instructions"
-      create_dir_with_gitkeep ".agents/${role_dir}/deliverables"
+  # task-manager（マルチタスク実行役。ネストsubagent前提のため claude ターゲット限定）
+  if [[ "$TARGET_CLI" == "claude" ]]; then
+    local tm_tmpl="${TEMPLATES_DIR}/agents/task-manager/CLAUDE.md.tmpl"
+    if [[ -f "$tm_tmpl" ]]; then
+      local tm_content
+      tm_content=$(cat "$tm_tmpl")
+      tm_content=$(process_template "$tm_content")
+      tm_content=$(process_conditions "$tm_content")
+      write_file ".agents/task-manager/${AGENT_INSTRUCTIONS_FILENAME}" "$tm_content"
     fi
+  fi
+
+  # カスタムロールテンプレート（参照用）
+  for cr_tmpl in "${TEMPLATES_DIR}"/agents/custom-roles/*/CLAUDE.md.tmpl; do
+    [[ -f "$cr_tmpl" ]] || continue
+    local cr_name
+    cr_name=$(basename "$(dirname "$cr_tmpl")")
+    local cr_content
+    cr_content=$(cat "$cr_tmpl")
+    cr_content=$(process_template "$cr_content")
+    cr_content=$(process_conditions "$cr_content")
+    write_file ".agents/custom-roles/${cr_name}/${AGENT_INSTRUCTIONS_FILENAME}" "$cr_content"
   done
+  if [[ -f "${TEMPLATES_DIR}/agents/custom-roles/README.md.tmpl" ]]; then
+    local cr_readme
+    cr_readme=$(cat "${TEMPLATES_DIR}/agents/custom-roles/README.md.tmpl")
+    cr_readme=$(process_template "$cr_readme")
+    cr_readme=$(process_conditions "$cr_readme")
+    write_file ".agents/custom-roles/README.md" "$cr_readme"
+  fi
 
   # --- スキルファイルの展開 ---
   log_step "スキルファイルを展開中..."
 
-  # コアスキル
-  for skill_dir in "${TEMPLATES_DIR}"/skills/core/koumei-*/; do
+  for skill_dir in "${TEMPLATES_DIR}"/skills/koumei-*/; do
     local skill_name
     skill_name=$(basename "$skill_dir")
+
+    # ロール依存スキルは有効時のみ展開
+    local should_install=true
+    case "$skill_name" in
+      koumei-analyze)                 has_role "analyst" || should_install=false ;;
+      koumei-design|koumei-design-ux) has_role "ux-designer" || should_install=false ;;
+    esac
+    $should_install || continue
+
     # プレフィックスを置換
     local target_name="${skill_name/koumei-/${SKILL_PREFIX}-}"
 
@@ -1671,36 +1795,62 @@ do_setup() {
       content=$(process_conditions "$content")
       write_file "${SKILLS_DIR}/${target_name}/SKILL.md" "$content"
     fi
-  done
 
-  # オプションスキル
-  for skill_dir in "${TEMPLATES_DIR}"/skills/optional/koumei-*/; do
-    local skill_name
-    skill_name=$(basename "$skill_dir")
-
-    # スキルに対応するロールが有効かチェック
-    local should_install=false
-    case "$skill_name" in
-      koumei-analyze)
-        has_role "analyst" && should_install=true
-        ;;
-      koumei-design|koumei-design-ux)
-        has_role "ux-designer" && should_install=true
-        ;;
-    esac
-
-    if $should_install; then
-      local target_name="${skill_name/koumei-/${SKILL_PREFIX}-}"
-      local tmpl="${skill_dir}SKILL.md.tmpl"
-      if [[ -f "$tmpl" ]]; then
-        local content
-        content=$(cat "$tmpl")
-        content=$(process_template "$content")
-        content=$(process_conditions "$content")
-        write_file "${SKILLS_DIR}/${target_name}/SKILL.md" "$content"
-      fi
+    # docs/ サブディレクトリ（koumei-start / koumei-review の手順書）
+    if [[ -d "${skill_dir}docs" ]]; then
+      for doc_tmpl in "${skill_dir}docs/"*.md.tmpl; do
+        [[ -f "$doc_tmpl" ]] || continue
+        local doc_name doc_content
+        doc_name=$(basename "$doc_tmpl" .tmpl)
+        doc_content=$(cat "$doc_tmpl")
+        doc_content=$(process_template "$doc_content")
+        doc_content=$(process_conditions "$doc_content")
+        write_file "${SKILLS_DIR}/${target_name}/docs/${doc_name}" "$doc_content"
+      done
     fi
   done
+
+  # --- Hooks / settings.json（Claude Code ターゲット限定） ---
+  if [[ "$TARGET_CLI" == "claude" ]]; then
+    log_step "Hooks を展開中..."
+    for hook_file in "${TEMPLATES_DIR}"/hooks/*.sh; do
+      [[ -f "$hook_file" ]] || continue
+      local hook_name hook_content
+      hook_name=$(basename "$hook_file")
+      hook_content=$(cat "$hook_file")
+      write_file "hooks/${hook_name}" "$hook_content"
+      # write_file がスキップしたファイル（Git管理下）や dry-run 中は触らない
+      if ! $DRY_RUN && [[ -f "hooks/${hook_name}" ]] && ! is_git_tracked "hooks/${hook_name}"; then
+        chmod +x "hooks/${hook_name}"
+      fi
+    done
+
+    # settings.json（hooks 設定のマージ）
+    local settings_tmpl="${TEMPLATES_DIR}/claude/settings.json"
+    if [[ -f "$settings_tmpl" ]]; then
+      if $DRY_RUN; then
+        log_info "[DRY-RUN] Would merge: .claude/settings.json"
+      elif [[ ! -f ".claude/settings.json" ]]; then
+        mkdir -p .claude
+        cp "$settings_tmpl" ".claude/settings.json"
+        log_info "作成: .claude/settings.json"
+      elif command -v jq &>/dev/null; then
+        if jq -e '.hooks' .claude/settings.json >/dev/null 2>&1; then
+          log_warn ".claude/settings.json に既存の hooks 設定があります。${settings_tmpl} を参考に手動でマージしてください。"
+        else
+          local merged
+          if merged=$(jq -s '.[0] + {hooks: .[1].hooks}' .claude/settings.json "$settings_tmpl" 2>/dev/null) && [[ -n "$merged" ]]; then
+            printf '%s\n' "$merged" > .claude/settings.json
+            log_info "マージ: .claude/settings.json に hooks 設定を追加"
+          else
+            log_warn ".claude/settings.json の自動マージに失敗しました。${settings_tmpl} を参考に手動で追加してください。"
+          fi
+        fi
+      else
+        log_warn "jq が無いため .claude/settings.json をマージできません。${settings_tmpl} を参考に手動で追加してください。"
+      fi
+    fi
+  fi
 
   # --- 完了 ---
   echo ""
@@ -1710,8 +1860,7 @@ do_setup() {
   echo ""
   log_info "利用可能なスキルコマンド:"
   log_info "  /${SKILL_PREFIX}-request   要件整理・指示書作成"
-  log_info "  /${SKILL_PREFIX}-start     タスク定義・指示書作成"
-  log_info "  /${SKILL_PREFIX}-run       全自動実行（設計→レビュー→実装→PR手前）"
+  log_info "  /${SKILL_PREFIX}-start     タスク定義・全自動実行（--manual で手動進行）"
   if has_role "analyst"; then
     log_info "  /${SKILL_PREFIX}-analyze   既存コード分析"
   fi
@@ -1720,7 +1869,7 @@ do_setup() {
     log_info "  /${SKILL_PREFIX}-design-ux UX設計（単体実行）"
   fi
   log_info "  /${SKILL_PREFIX}-design-tech 技術設計"
-  log_info "  /${SKILL_PREFIX}-review    レビュー"
+  log_info "  /${SKILL_PREFIX}-review    レビュー（--security / --second-opinion / --model 対応）"
   log_info "  /${SKILL_PREFIX}-implement 実装"
   log_info "  /${SKILL_PREFIX}-status    進捗確認"
   echo ""

@@ -1,3 +1,5 @@
+> ⚠️ **注意**: 本ドキュメントは origin 統合（Phase 1）前の旧構成（commander/reviewer・旧configスキーマ）の記述を含みます。最新のロール構成・設定キーは README.md と koumei.config.example.yaml を参照してください。Phase 2 で全面更新予定。
+
 # 設定ファイル詳細
 
 `koumei.config.yaml` の全設定項目の説明。
