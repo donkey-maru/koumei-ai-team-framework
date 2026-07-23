@@ -71,7 +71,6 @@ tech_stack:
   testing: ""                        # 例: "Vitest", "Jest", "pytest"
   build_command: "npm run build"
   test_command: "npm run test"
-  dev_command: "npm run dev"
   check_command: ""                  # lint/format チェック（PR前に実行）。例: "npm run check"（Biome）, "npm run lint"
                                       # 空の場合はチェック工程をスキップ（lint未導入プロジェクトでも安全）
 
@@ -80,7 +79,9 @@ git:
   main_branch: "main"
   develop_branch: "develop"          # 空文字の場合、mainに直接マージ
   branch_pattern: "feature/task-{number}-{summary}"
-  dev_rules: ""                      # TEAM.md の開発規約に追記する行（任意・複数行可）
+  dev_rules: ""                      # TEAM.md の開発規約に追記する行（任意）
+                                      # ※ # や引用符を含む値・複数行は必ず | ブロック形式で記述すること
+                                      #   （プレーンスカラーだと yq 無し環境で # 以降が切り捨てられる）
 
 # === 成果物の出力設定 ===
 # 作業成果物（分析・設計・レビュー・報告）は .agents/ 配下の各ワークスペースに置かれる
@@ -88,24 +89,19 @@ git:
 output:
   dir: "docs-official"                    # 公式ドキュメントの出力ディレクトリ（プロジェクトルート相対）
   format: "md"                            # 出力形式（現在は md のみ）
-  instructions: |                         # 公式ドキュメントに関する追加指示（任意）
-    # 例:
-    # - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
-    # - 見出しレベルは ## から開始すること
+  instructions: ""                        # 公式ドキュメントに関する追加指示（任意・複数行は | ブロック形式で）
+                                          # 記入例:
+                                          #   instructions: |
+                                          #     - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
+                                          #     - 見出しレベルは ## から開始すること
 
 # === カスタム指示（各ロールの指示ファイル末尾に追記される） ===
 custom_instructions:
   koumei: ""
-  tech-lead: |
-    # ここにプロジェクト固有の技術指示を記述
-    # 例:
-    # - RSC ファースト: Server Components をデフォルト
-    # - DTO シリアライゼーション: Server→Client 境界で必ず DTO 化
-  devils-advocate: |
-    # ここにプロジェクト固有のレビュー観点を記述
-    # 例:
-    # - OWASP Top 10 を重点レビュー
-    # - Firestore のセキュリティルール確認
+  tech-lead: ""       # プロジェクト固有の技術指示（複数行は | ブロック形式で）
+                      # 記入例: - RSC ファースト: Server Components をデフォルト
+  devils-advocate: "" # プロジェクト固有のレビュー観点（複数行は | ブロック形式で）
+                      # 記入例: - OWASP Top 10 を重点レビュー
   analyst: ""
   ux-designer: ""
 

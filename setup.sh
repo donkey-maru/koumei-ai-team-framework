@@ -379,12 +379,11 @@ run_wizard() {
     show_detected "テスト" "$DETECTED_TEST_CMD"
     show_detected "Lint/Format" "$DETECTED_CHECK_CMD"
     echo -e "    ${YELLOW}↑ PR前に実行する lint/format チェック（Biome/ESLint等）${NC}"
-    show_detected "開発サーバー" "$DETECTED_DEV_CMD"
     echo ""
   fi
 
   local lang fw ui_lib styling db testing
-  local build_cmd test_cmd dev_cmd check_cmd
+  local build_cmd test_cmd check_cmd
 
   if $has_detection && prompt_yn "検出結果をベースに進めますか？（個別に修正可能）" "y"; then
     echo ""
@@ -400,7 +399,6 @@ run_wizard() {
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "${DETECTED_TEST_CMD:-}")
     echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
     check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "${DETECTED_CHECK_CMD:-}")
-    dev_cmd=$(prompt_input "開発サーバーコマンド" "${DETECTED_DEV_CMD:-npm run dev}")
   else
     echo ""
     echo -e "  ${YELLOW}手動で入力してください。${NC}"
@@ -421,7 +419,6 @@ run_wizard() {
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
     echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
     check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "")
-    dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
   fi
 
   # --- 成果物出力 ---
@@ -508,7 +505,7 @@ run_wizard() {
   echo ""
   echo -e "${BLUE}━━━ 移行プロジェクト設定 ━━━${NC}"
   echo -e "  ${YELLOW}既存システムから新システムへの移行プロジェクトの場合に設定します。${NC}"
-  echo -e "  ${YELLOW}有効にすると、分析・設計時に移行元コードの参照指示がAIに含まれます。${NC}"
+  echo -e "  ${YELLOW}※現バージョンでは設定の記録のみ（テンプレートへの配線は今後対応）。${NC}"
   local mig_enabled="false" mig_source="" mig_source_fw="" mig_target_fw=""
   if prompt_yn "既存システムからの移行プロジェクトですか？"; then
     mig_enabled="true"
@@ -593,7 +590,6 @@ tech_stack:
   testing: "${testing}"
   build_command: "${build_cmd}"
   test_command: "${test_cmd}"
-  dev_command: "${dev_cmd}"
   check_command: "${check_cmd}"
 
 # === 成果物の出力設定 ===
@@ -1110,23 +1106,24 @@ load_config() {
         REFERENCE_DOCS+="- \`${path}\` - ${desc}"$'\n'
       done
     fi
+  elif grep -qE '^reference_docs:' "$CONFIG_FILE" && ! grep -qE '^reference_docs:[[:space:]]*\[\]' "$CONFIG_FILE"; then
+    # awk フォールバックはオブジェクト配列を解析できない
+    log_warn "reference_docs の読み込みには yq が必要です（未インストールのため空として扱います）: brew install yq"
   fi
+  # 空のままなら生成物で「登録なし」と明示する
+  REFERENCE_DOCS="${REFERENCE_DOCS:-（登録なし）}"
 
   # Perlテンプレートエンジン用に環境変数をエクスポート
+  # 注意: ここに置くのはテンプレートが実際に消費する {{PLACEHOLDER}} のみ。
+  # 未消費の export はテンプレート作者に「生きた契約」と誤認されるため追加しない
   export KOUMEI_VAR_PROJECT_NAME="$PROJECT_NAME"
-  export KOUMEI_VAR_PROJECT_DESCRIPTION="$PROJECT_DESCRIPTION"
   export KOUMEI_VAR_PROJECT_PATH="$PROJECT_PATH"
-  export KOUMEI_VAR_TARGET_CLI="$TARGET_CLI"
-  export KOUMEI_VAR_AI_CLI_NAME="$AI_CLI_NAME"
   export KOUMEI_VAR_SKILLS_DIR="$SKILLS_DIR"
   export KOUMEI_VAR_AGENT_INSTRUCTIONS_FILENAME="$AGENT_INSTRUCTIONS_FILENAME"
   export KOUMEI_VAR_COMMANDER_NAME="$COMMANDER_NAME"
   export KOUMEI_VAR_SKILL_PREFIX="$SKILL_PREFIX"
   export KOUMEI_VAR_BUILD_COMMAND="$BUILD_COMMAND"
-  export KOUMEI_VAR_TEST_COMMAND="$TEST_COMMAND"
   export KOUMEI_VAR_CHECK_COMMAND="$CHECK_COMMAND"
-  export KOUMEI_VAR_GIT_MAIN_BRANCH="$GIT_MAIN_BRANCH"
-  export KOUMEI_VAR_GIT_DEVELOP_BRANCH="$GIT_DEVELOP_BRANCH"
   export KOUMEI_VAR_GIT_BRANCH_PATTERN="$GIT_BRANCH_PATTERN"
   export KOUMEI_VAR_MODEL_KOUMEI="$MODEL_KOUMEI"
   export KOUMEI_VAR_MODEL_ANALYST="$MODEL_ANALYST"
@@ -1142,10 +1139,6 @@ load_config() {
   export KOUMEI_VAR_UI_LIBRARY="$TECH_UI_LIBRARY"
   export KOUMEI_VAR_STYLING="$TECH_STYLING"
   export KOUMEI_VAR_OUTPUT_DIR="$OUTPUT_DIR"
-  export KOUMEI_VAR_OUTPUT_FORMAT="$OUTPUT_FORMAT"
-  export KOUMEI_VAR_MIGRATION_SOURCE_PATH="$MIGRATION_SOURCE_PATH"
-  export KOUMEI_VAR_MIGRATION_SOURCE_FRAMEWORK="$MIGRATION_SOURCE_FRAMEWORK"
-  export KOUMEI_VAR_MIGRATION_TARGET_FRAMEWORK="$MIGRATION_TARGET_FRAMEWORK"
 
   log_info "プロジェクト: ${PROJECT_NAME}"
   log_info "対象CLI: ${AI_CLI_NAME}"
@@ -1180,7 +1173,7 @@ CONFIG_REQUIRED_KEYS=(
   "tech_stack.language" "tech_stack.framework" "tech_stack.ui_library" "tech_stack.styling"
   "tech_stack.database" "tech_stack.testing"
   "tech_stack.build_command" "tech_stack.test_command" "tech_stack.check_command"
-  "git.main_branch" "git.develop_branch" "git.branch_pattern" "git.dev_rules"
+  "git.main_branch" "git.develop_branch" "git.branch_pattern"
   "output.dir" "output.format" "output.instructions"
   "custom_instructions.koumei" "custom_instructions.tech-lead" "custom_instructions.devils-advocate"
   "reference_docs"
@@ -1254,25 +1247,18 @@ generate_tech_stack_table() {
 }
 
 
-# 動的テンプレート変数ディレクトリ（run 中は値が不変のため一度だけ構築して使い回す）
-TEMPLATE_VARS_DIR=""
-init_template_vars() {
-  [[ -n "$TEMPLATE_VARS_DIR" ]] && return 0
-  TEMPLATE_VARS_DIR=$(mktemp -d)
-  trap 'rm -rf "$TEMPLATE_VARS_DIR"' EXIT
-
-  generate_tech_stack_table > "${TEMPLATE_VARS_DIR}/TECH_STACK_TABLE"
-  printf '%s' "$DEV_RULES" > "${TEMPLATE_VARS_DIR}/DEV_RULES"
-  printf '%s' "$REFERENCE_DOCS" > "${TEMPLATE_VARS_DIR}/REFERENCE_DOCS"
-  printf '%s' "$OUTPUT_INSTRUCTIONS" > "${TEMPLATE_VARS_DIR}/OUTPUT_INSTRUCTIONS"
-}
-
 # テンプレート変数を置換（全てファイルベースで処理）
+# 注意: 本関数は常にコマンド置換（サブシェル）経由で呼ばれるため、
+# 親シェル変数へのキャッシュは機能しない。vars_dir は毎回構築・毎回削除する
 process_template() {
   local input_content="$1"
 
-  init_template_vars
-  local vars_dir="$TEMPLATE_VARS_DIR"
+  local vars_dir
+  vars_dir=$(mktemp -d)
+  generate_tech_stack_table > "${vars_dir}/TECH_STACK_TABLE"
+  printf '%s' "$DEV_RULES" > "${vars_dir}/DEV_RULES"
+  printf '%s' "$REFERENCE_DOCS" > "${vars_dir}/REFERENCE_DOCS"
+  printf '%s' "$OUTPUT_INSTRUCTIONS" > "${vars_dir}/OUTPUT_INSTRUCTIONS"
 
   # 入力をファイルに書き出し
   local input_file
@@ -1334,7 +1320,7 @@ process_template() {
     print $content;
   ' "$vars_dir" "$input_file")
 
-  rm -f "$input_file"   # vars_dir は run 全体で共有（EXIT trap で削除）
+  rm -rf "$vars_dir" "$input_file"
   printf '%s' "$result"
 }
 
@@ -1577,11 +1563,16 @@ do_clean() {
     log_info "削除: .agents/"
   fi
 
-  # Hooks（本フレームワークが配布したスクリプトのみ削除。テンプレート一覧と常に同期）
+  # Hooks（本フレームワークが配布したスクリプトのみ削除。テンプレート一覧と同期し、
+  # テンプレートディレクトリが見つからない場合は既知の配布済みフック名にフォールバック）
+  local hook_names=()
   for hook_file in "${TEMPLATES_DIR}"/hooks/*.sh; do
-    [[ -f "$hook_file" ]] || continue
-    local hook_name
-    hook_name=$(basename "$hook_file")
+    [[ -f "$hook_file" ]] && hook_names+=("$(basename "$hook_file")")
+  done
+  if [[ ${#hook_names[@]} -eq 0 ]]; then
+    hook_names=(quality-gate.sh log-operation.sh auto-format.sh notify-phase.sh)
+  fi
+  for hook_name in "${hook_names[@]}"; do
     if [[ -f "hooks/${hook_name}" ]]; then
       rm -f "hooks/${hook_name}"
       log_info "削除: hooks/${hook_name}"
@@ -1743,10 +1734,11 @@ do_setup() {
     log_step "Hooks を展開中..."
     for hook_file in "${TEMPLATES_DIR}"/hooks/*.sh; do
       [[ -f "$hook_file" ]] || continue
-      local hook_name hook_content
+      local hook_name
       hook_name=$(basename "$hook_file")
-      hook_content=$(cat "$hook_file")
-      write_file "hooks/${hook_name}" "$hook_content"
+      # hooks も {{COMMANDER_NAME}} 等を含むためテンプレートとして描画する
+      # （bash の ${VAR} 記法はテンプレートエンジンの {{VAR}} と衝突しないので安全）
+      render_template_file "$hook_file" "hooks/${hook_name}"
       # write_file がスキップしたファイル（Git管理下）や dry-run 中は触らない
       if ! $DRY_RUN && [[ -f "hooks/${hook_name}" ]] && ! is_git_tracked "hooks/${hook_name}"; then
         chmod +x "hooks/${hook_name}"

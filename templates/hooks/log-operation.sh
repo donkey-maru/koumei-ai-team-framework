@@ -1,5 +1,5 @@
 #!/bin/bash
-# 孔明エージェントチーム — 操作ログ記録
+# {{COMMANDER_NAME}}エージェントチーム — 操作ログ記録
 # PostToolUse で呼ばれ、全操作を .agents/logs/ に記録する
 
 LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.agents/logs"
