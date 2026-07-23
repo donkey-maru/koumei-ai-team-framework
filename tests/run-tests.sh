@@ -113,6 +113,10 @@ assert_not "未解決プレースホルダなし" grep -rqE '\{\{[A-Z_0-9]+\}\}'
 assert_not "check_command 空 → lint ゲート節なし" grep -q "Lint/Format チェック" .claude/skills/koumei-implement/SKILL.md
 assert "TEAM.md に analyst 行なし（IF_ROLE）" test "$(grep -c 'システム分析担当' .agents/TEAM.md)" -eq 0
 assert "参照ドキュメント空 → （登録なし）" grep -q "（登録なし）" .agents/TEAM.md
+assert "Phase 7 にドキュメント反映ステップ" grep -q "requirements-spec-design.md" .claude/skills/koumei-start/docs/phases.md
+assert "TEAM.md に2層構成の説明" grep -q "requirements-spec-design.md" .agents/TEAM.md
+assert "SKILL.md の Phase表もドキュメント反映を明記" grep -q "ドキュメント反映 + PR作成" .claude/skills/koumei-start/SKILL.md
+assert "task-template のチェックリストも同期" grep -q "Phase 7: ドキュメント反映 + PR作成" .claude/skills/koumei-start/docs/task-template.md
 
 # ------------------------------------------------------------
 echo ""
