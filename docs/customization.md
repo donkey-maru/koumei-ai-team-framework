@@ -1,229 +1,98 @@
-> ⚠️ **注意**: 本ドキュメントは origin 統合（Phase 1）前の旧構成（commander/reviewer・旧configスキーマ）の記述を含みます。最新のロール構成・設定キーは README.md と koumei.config.example.yaml を参照してください。Phase 2 で全面更新予定。
-
 # カスタマイズガイド
+
+## 基本原則
+
+このフレームワークの生成物（TEAM.md・ロール定義・スキル）は `koumei.config.yaml` からの生成物。カスタマイズは原則 **config 経由**で行い、`setup.sh --update` で反映する。
+
+- 生成された `.agents/{ロール}/CLAUDE.md`（codex/antigravity では `AGENTS.md`）や `SKILL.md` を直接編集した場合、Git にコミットしておけば `--update` で上書きされない（Git 管理下スキップ）
+- **例外: `.agents/TEAM.md` は常に強制再生成される**（上書き前のバックアップは `.agents/.backup/` へ）。TEAM.md への手動カスタマイズは維持されないため、必ず config 経由で変更すること
 
 ## ロール構成の変更
 
-### 対話式で変更（推奨）
-
 ```bash
-/path/to/koumei-ai-team-framework/setup.sh --roles
+setup.sh --roles     # analyst / ux-designer の有効・無効を対話式で変更
 ```
 
-現在のロール構成が表示され、各ロールの説明を見ながら ON/OFF を選択できます。
+無効化したロールのスキル・ワークスペース・TEAM.md 記載は生成されず、ワークフロー上も該当フェーズがスキップされる。
 
-### 手動で変更
+## ロール別カスタム指示（custom_instructions）
 
-`koumei.config.yaml` の `roles` セクションを編集:
-
-```yaml
-roles:
-  - commander
-  - tech-lead
-  - reviewer
-  - analyst         # 追加
-  - ux-designer     # 追加
-```
-
-変更後に再セットアップ:
-```bash
-/path/to/koumei-ai-team-framework/setup.sh --update
-```
-
-### コア構成のみ（最小構成）
-
-```yaml
-roles:
-  - commander
-  - tech-lead
-  - reviewer
-```
-
-ワークフロー: `request → start → design-tech → review → implement → review → status`
-
-### フル構成
-
-```yaml
-roles:
-  - commander
-  - tech-lead
-  - reviewer
-  - analyst
-  - ux-designer
-```
-
-ワークフロー: `request → start → analyze → design(並列) → review → implement → review → status`
-
-## コマンドプレフィックスの変更
-
-```yaml
-skill_prefix: "km"
-```
-
-再セットアップ後、`/km-request`, `/km-start`, `/km-review` 等で利用可能。
-
-**注意**: プレフィックス変更前のスキルディレクトリは自動削除されません。必要に応じて手動削除するか、`--clean` 後に再セットアップしてください。
-
-## 成果物の出力先変更
-
-```yaml
-output:
-  dir: "docs-confidential"
-  format: "md"
-  instructions: |
-    - 同フォルダ内の既存 .md ファイルの書き方を参考にすること
-```
-
-### プロジェクト既存の指示との共存
-
-プロジェクトの `AGENTS.md` や `CLAUDE.md` に成果物出力先の指示が既にある場合、**そちらが優先**されます。`koumei.config.yaml` の設定はフォールバックとして機能します。
-
-## カスタム指示の追加
-
-各ロールにプロジェクト固有の指示を追加できます:
+プロジェクト固有の指示を各ロールの役割定義に注入する。もっとも使用頻度の高いカスタマイズ。
 
 ```yaml
 custom_instructions:
   tech-lead: |
-    ## プロジェクト固有ルール
-    - Server Components をデフォルトにする
-    - Firestore Timestamp は必ず ISO 文字列に変換
-    - any 型の使用禁止
-  reviewer: |
-    ## 追加レビュー観点
-    - Firestore セキュリティルールの確認
-    - Server Actions のバリデーション漏れチェック
+    - RSC ファースト: Server Components をデフォルト
+    - DTO シリアライゼーション: Server→Client 境界で必ず DTO 化
+  devils-advocate: |
+    - OWASP Top 10 を重点レビュー
+    - Firestore のセキュリティルール確認
 ```
 
-## 移行プロジェクトでの利用
+## カスタムロールの追加
 
-既存システムからの移行を行う場合:
+api-designer / data-engineer / infra-architect のテンプレートが `.agents/custom-roles/` に展開される。有効化手順:
+
+1. `cp -r .agents/custom-roles/{ロール名} .agents/{ロール名}`（または新規に役割定義を作成）
+2. `mkdir -p .agents/{ロール名}/instructions .agents/{ロール名}/deliverables`
+3. TEAM.md「チーム構成」テーブルへの行追加は config 化されていないため、`.agents/custom-roles/README.md` の手順を参照
+
+`/koumei-start` は TEAM.md のチーム構成テーブルにある標準5ロール以外のロールをカスタムロールとして自動検出し、指示書を作成する。
+
+## レビューのカスタマイズ
+
+```yaml
+review:
+  mode: "economy"    # codex → lmstudio → claude の節約3段構成
+  timeout: 900
+```
+
+- セキュリティ監査: `/koumei-review --security`（OWASP Top10 + STRIDE、スコア8/10未満で強制差し戻し）
+- セカンドオピニオン: `/koumei-review --second-opinion`（TEAM.md「セカンドオピニオン設定」テーブルの有効化が必要）
+- 一時モデル切替: `/koumei-review --model grok` 等
+
+## 外部CLIモデル・モデル委譲（上級）
+
+外部CLIモデル定義・モデル委譲設定・セカンドオピニオン設定は、現状 TEAM.md 内のテーブル（デフォルトはコメントアウト）で管理される。
+
+**既知の制約**: TEAM.md は `--update` で強制再生成されるため、これらのテーブルを直接編集しても再生成時に失われる（バックアップは `.agents/.backup/` に残る）。恒久的に有効化したい場合は、フレームワーク側の `templates/agents/TEAM.md.tmpl` を編集するか、config 化（今後のフェーズで対応予定）を待つこと。
+
+## PR前 lint ゲート（check_command）
+
+```yaml
+tech_stack:
+  check_command: "npm run check"   # Biome の例。ESLint なら "npm run lint"
+```
+
+設定すると `/koumei-implement` の完了条件に「チェックが通ること」が追加され、実装フェーズはチェックが通るまで完了報告に進めない。lint 未導入プロジェクトでは空のままにすればゲートごとスキップされる。
+
+## Hooks のカスタマイズ（claude ターゲット限定）
+
+`hooks/` に配布される4スクリプトは Git にコミットすれば `--update` で上書きされない（自作フックの追加も自由。`--clean` はフレームワーク由来の4本だけを削除する）。
+
+| Hook | 役割 |
+|------|------|
+| quality-gate.sh | TEAM.md の直接編集をブロック |
+| log-operation.sh | 全ツール操作を `.agents/logs/YYYY-MM-DD.jsonl` に記録 |
+| auto-format.sh | 保存時 prettier 自動実行（.md は除外） |
+| notify-phase.sh | 成果物/レビュー/報告の書き込みを macOS 通知 |
+
+## スキルプレフィックスの変更
+
+```yaml
+skill_prefix: "km"    # /km-start, /km-review ...
+```
+
+スキルディレクトリ名・frontmatter の name・スキル間相互参照・手順書内パスのすべてが追従する。
+
+## 移行プロジェクト設定
 
 ```yaml
 migration:
   enabled: true
-  source_path: "../old-project"
+  source_path: "~/projects/legacy-app"
   source_framework: "Nuxt 2"
   target_framework: "Next.js 15"
 ```
 
-これにより:
-- TEAM.md に移行元/先プロジェクト情報が追記
-- commander の指示ファイルに移行元プロジェクトへの参照が追加
-- analyst の指示ファイルに分析対象パスが追加
-
-## 設定の再作成
-
-設定ファイルを最初から作り直したい場合:
-
-```bash
-/path/to/koumei-ai-team-framework/setup.sh --init
-```
-
-対話式ウィザードが起動し、`koumei.config.yaml` を再生成します。
-
-## テンプレートの直接編集
-
-展開後のファイル（`.agents/*/AGENTS.md`, `.codex/skills/*/SKILL.md`）を直接編集することも可能です。
-`target_cli: "claude"` の場合は `.agents/*/CLAUDE.md`, `.claude/skills/*/SKILL.md` が対象です。
-`target_cli: "antigravity"` の場合は `.agents/*/AGENTS.md`, `.agents/skills/*/SKILL.md` が対象です。
-
-**注意**: `setup.sh --update` を実行すると上書きされるため、カスタマイズは `custom_instructions` 経由で行うことを推奨します。
-
-## アナリティクスイベント CI チェックの導入
-
-PR 時にアナリティクスイベントの実装漏れを自動検出する CI スクリプトを導入できます。
-このスクリプトは koumei に依存しないため、他の AI ハーネスフレームワークを使用するプロジェクトでも利用できます。
-
-### 導入手順
-
-**1. スクリプトをコピー**
-
-```bash
-mkdir -p .ci
-cp /path/to/koumei-ai-team-framework/examples/ci/check-analytics-events.sh .ci/
-chmod +x .ci/check-analytics-events.sh
-```
-
-**2. スクリプトの設定を編集**
-
-`.ci/check-analytics-events.sh` の設定セクションをプロジェクトに合わせて変更:
-
-```bash
-CONSTANTS_FILE="lib/analytics/constants.ts"   # 定数ファイルのパス
-ANALYTICS_OBJECT_NAME="ANALYTICS_EVENTS"      # ソースコード内の使用形式のオブジェクト名
-BASE_BRANCH="main"                            # 比較ベースブランチ
-```
-
-定数ファイルの形式に合わせて抽出パターンも選択してください（スクリプト内のコメントを参照）。
-
-**3. アナリティクスルールドキュメントをコピー**
-
-```bash
-cp /path/to/koumei-ai-team-framework/examples/docs/analytics-rules.md <プロジェクトの任意のパス>
-# 例: docs/analytics-rules.md、docs-official/analytics-rules.md など
-```
-
-配置先はプロジェクトのドキュメントディレクトリに合わせてください（`docs/` に限りません）。
-このファイルが存在することで、koumei の reviewer に限らずどの AI ツールでも
-「何を確認すべきか」を参照できます。
-
-配置先を変更した場合は、`.ci/check-analytics-events.sh` の `RULES_DOC_PATH` も合わせて更新してください:
-
-```bash
-RULES_DOC_PATH="docs-official/analytics-rules.md"  # 実際の配置先に変更
-```
-
-CI 失敗メッセージはこのパスを参照先として出力します。
-
-**4. package.json にスクリプトを追加**
-
-```json
-{
-  "scripts": {
-    "check:analytics": "bash .ci/check-analytics-events.sh"
-  }
-}
-```
-
-**5. CI に組み込む**
-
-Bitbucket Pipelines の例:
-
-```yaml
-pipelines:
-  pull-requests:
-    '**':
-      - step:
-          name: Analytics Check
-          script:
-            - npm run check:analytics
-```
-
-GitHub Actions の例:
-
-```yaml
-- name: Analytics Check
-  run: npm run check:analytics
-  env:
-    BASE_BRANCH: ${{ github.base_ref }}
-```
-
-### koumei reviewer との連携
-
-`koumei.config.yaml` の `custom_instructions.reviewer` に以下を追加すると、
-AI reviewer が CI では検出できないケース（定数も `track()` も追加しないままボタンだけ追加した場合）を補完します:
-
-```yaml
-custom_instructions:
-  reviewer: |
-    - アナリティクスカバレッジ: docs/analytics-rules.md を参照し、
-      新しいユーザー操作に track() が実装されているか確認すること
-```
-
-### 検出範囲
-
-| ケース | CI | reviewer |
-|--------|-----|----------|
-| 定数を追加したのに `track()` を書き忘れた | ✅ FAILED でブロック | ✅ |
-| ボタンを追加したのに定数も `track()` も書かなかった | 検出不可 | ✅ |
+有効にすると、分析・設計フェーズで移行元コードを参照する指示が各ロールに含まれる。
