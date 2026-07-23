@@ -379,12 +379,11 @@ run_wizard() {
     show_detected "テスト" "$DETECTED_TEST_CMD"
     show_detected "Lint/Format" "$DETECTED_CHECK_CMD"
     echo -e "    ${YELLOW}↑ PR前に実行する lint/format チェック（Biome/ESLint等）${NC}"
-    show_detected "開発サーバー" "$DETECTED_DEV_CMD"
     echo ""
   fi
 
   local lang fw ui_lib styling db testing
-  local build_cmd test_cmd dev_cmd check_cmd
+  local build_cmd test_cmd check_cmd
 
   if $has_detection && prompt_yn "検出結果をベースに進めますか？（個別に修正可能）" "y"; then
     echo ""
@@ -400,7 +399,6 @@ run_wizard() {
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "${DETECTED_TEST_CMD:-}")
     echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
     check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "${DETECTED_CHECK_CMD:-}")
-    dev_cmd=$(prompt_input "開発サーバーコマンド" "${DETECTED_DEV_CMD:-npm run dev}")
   else
     echo ""
     echo -e "  ${YELLOW}手動で入力してください。${NC}"
@@ -421,7 +419,6 @@ run_wizard() {
     test_cmd=$(prompt_input "テストコマンド（なければ空Enter）" "")
     echo -e "  ${YELLOW}Lint/Format: PR前に実行する lint/format チェック。空なら工程ごとスキップ${NC}"
     check_cmd=$(prompt_input "Lint/Formatチェックコマンド（なければ空Enter）" "")
-    dev_cmd=$(prompt_input "開発サーバーコマンド" "npm run dev")
   fi
 
   # --- 成果物出力 ---
@@ -508,7 +505,7 @@ run_wizard() {
   echo ""
   echo -e "${BLUE}━━━ 移行プロジェクト設定 ━━━${NC}"
   echo -e "  ${YELLOW}既存システムから新システムへの移行プロジェクトの場合に設定します。${NC}"
-  echo -e "  ${YELLOW}有効にすると、分析・設計時に移行元コードの参照指示がAIに含まれます。${NC}"
+  echo -e "  ${YELLOW}※現バージョンでは設定の記録のみ（テンプレートへの配線は今後対応）。${NC}"
   local mig_enabled="false" mig_source="" mig_source_fw="" mig_target_fw=""
   if prompt_yn "既存システムからの移行プロジェクトですか？"; then
     mig_enabled="true"
@@ -593,7 +590,6 @@ tech_stack:
   testing: "${testing}"
   build_command: "${build_cmd}"
   test_command: "${test_cmd}"
-  dev_command: "${dev_cmd}"
   check_command: "${check_cmd}"
 
 # === 成果物の出力設定 ===
@@ -607,6 +603,7 @@ git:
   main_branch: "${git_main}"
   develop_branch: "${git_develop}"
   branch_pattern: "${git_branch_pattern}"
+  dev_rules: ""                      # TEAM.md の開発規約に追記する行（任意・複数行は | 形式で）
 
 # === カスタム指示（各ロールの指示ファイルに追記される） ===
 custom_instructions:
@@ -1049,7 +1046,10 @@ load_config() {
   REVIEW_TIMEOUT="${REVIEW_TIMEOUT:-600}"
 
   # 開発規約の追加行（任意）
+  # ブロックスカラー（dev_rules: |）優先、プレーンスカラー（dev_rules: "..."）にもフォールバック
+  # （awk フォールバックパーサーはブロックスカラーしか読めず、yq 有無で挙動が割れるため）
   DEV_RULES=$(yaml_get_multiline "git" "dev_rules")
+  [[ -z "$DEV_RULES" ]] && DEV_RULES=$(yaml_get "git.dev_rules")
 
   # 技術スタック
   TECH_LANGUAGE=$(yaml_get "tech_stack.language")
@@ -1106,23 +1106,24 @@ load_config() {
         REFERENCE_DOCS+="- \`${path}\` - ${desc}"$'\n'
       done
     fi
+  elif grep -qE '^reference_docs:' "$CONFIG_FILE" && ! grep -qE '^reference_docs:[[:space:]]*\[\]' "$CONFIG_FILE"; then
+    # awk フォールバックはオブジェクト配列を解析できない
+    log_warn "reference_docs の読み込みには yq が必要です（未インストールのため空として扱います）: brew install yq"
   fi
+  # 空のままなら生成物で「登録なし」と明示する
+  REFERENCE_DOCS="${REFERENCE_DOCS:-（登録なし）}"
 
   # Perlテンプレートエンジン用に環境変数をエクスポート
+  # 注意: ここに置くのはテンプレートが実際に消費する {{PLACEHOLDER}} のみ。
+  # 未消費の export はテンプレート作者に「生きた契約」と誤認されるため追加しない
   export KOUMEI_VAR_PROJECT_NAME="$PROJECT_NAME"
-  export KOUMEI_VAR_PROJECT_DESCRIPTION="$PROJECT_DESCRIPTION"
   export KOUMEI_VAR_PROJECT_PATH="$PROJECT_PATH"
-  export KOUMEI_VAR_TARGET_CLI="$TARGET_CLI"
-  export KOUMEI_VAR_AI_CLI_NAME="$AI_CLI_NAME"
   export KOUMEI_VAR_SKILLS_DIR="$SKILLS_DIR"
   export KOUMEI_VAR_AGENT_INSTRUCTIONS_FILENAME="$AGENT_INSTRUCTIONS_FILENAME"
   export KOUMEI_VAR_COMMANDER_NAME="$COMMANDER_NAME"
   export KOUMEI_VAR_SKILL_PREFIX="$SKILL_PREFIX"
   export KOUMEI_VAR_BUILD_COMMAND="$BUILD_COMMAND"
-  export KOUMEI_VAR_TEST_COMMAND="$TEST_COMMAND"
   export KOUMEI_VAR_CHECK_COMMAND="$CHECK_COMMAND"
-  export KOUMEI_VAR_GIT_MAIN_BRANCH="$GIT_MAIN_BRANCH"
-  export KOUMEI_VAR_GIT_DEVELOP_BRANCH="$GIT_DEVELOP_BRANCH"
   export KOUMEI_VAR_GIT_BRANCH_PATTERN="$GIT_BRANCH_PATTERN"
   export KOUMEI_VAR_MODEL_KOUMEI="$MODEL_KOUMEI"
   export KOUMEI_VAR_MODEL_ANALYST="$MODEL_ANALYST"
@@ -1132,20 +1133,12 @@ load_config() {
   export KOUMEI_VAR_MODEL_DEVILS_ADVOCATE="$MODEL_DEVILS_ADVOCATE"
   export KOUMEI_VAR_REVIEW_MODE="$REVIEW_MODE"
   export KOUMEI_VAR_REVIEW_TIMEOUT="$REVIEW_TIMEOUT"
-  # origin 由来テンプレートの互換プレースホルダ
+  # 技術スタック系プレースホルダ
   export KOUMEI_VAR_FRAMEWORK="$TECH_FRAMEWORK"
-  export KOUMEI_VAR_FRAMEWORK_1="$TECH_FRAMEWORK"
-  export KOUMEI_VAR_PROJECT_1="$PROJECT_NAME"
-  export KOUMEI_VAR_PROJECT_1_PATH="$PROJECT_PATH"
-  export KOUMEI_VAR_TECH_STACK_1="${TECH_LANGUAGE}${TECH_FRAMEWORK:+ / ${TECH_FRAMEWORK}}"
-  export KOUMEI_VAR_UI_FRAMEWORK="$TECH_UI_LIBRARY"
+  export KOUMEI_VAR_TECH_STACK_SUMMARY="${TECH_LANGUAGE}${TECH_FRAMEWORK:+ / ${TECH_FRAMEWORK}}"
+  export KOUMEI_VAR_UI_LIBRARY="$TECH_UI_LIBRARY"
   export KOUMEI_VAR_STYLING="$TECH_STYLING"
-  export KOUMEI_VAR_EXISTING_COMPONENTS="$TECH_UI_LIBRARY"
   export KOUMEI_VAR_OUTPUT_DIR="$OUTPUT_DIR"
-  export KOUMEI_VAR_OUTPUT_FORMAT="$OUTPUT_FORMAT"
-  export KOUMEI_VAR_MIGRATION_SOURCE_PATH="$MIGRATION_SOURCE_PATH"
-  export KOUMEI_VAR_MIGRATION_SOURCE_FRAMEWORK="$MIGRATION_SOURCE_FRAMEWORK"
-  export KOUMEI_VAR_MIGRATION_TARGET_FRAMEWORK="$MIGRATION_TARGET_FRAMEWORK"
 
   log_info "プロジェクト: ${PROJECT_NAME}"
   log_info "対象CLI: ${AI_CLI_NAME}"
@@ -1253,87 +1246,17 @@ generate_tech_stack_table() {
   echo "$table"
 }
 
-# 有効ロール一覧テキストを生成
-generate_active_roles_list() {
-  local list=""
-  for role in "${ROLES[@]}"; do
-    [[ "$role" == "koumei" ]] && continue
-    [[ -n "$list" ]] && list+=", "
-    list+="$role"
-  done
-  echo "$list"
-}
-
-# ワークフロー図を生成
-generate_workflow_diagram() {
-  local diagram="/${SKILL_PREFIX}-start"
-
-  if has_role "analyst"; then
-    diagram+=" → /${SKILL_PREFIX}-analyze"
-  fi
-
-  if has_role "ux-designer"; then
-    diagram+=" → /${SKILL_PREFIX}-design（UX+技術 並列）"
-  else
-    diagram+=" → /${SKILL_PREFIX}-design-tech"
-  fi
-
-  diagram+=" → /${SKILL_PREFIX}-review → /${SKILL_PREFIX}-implement → /${SKILL_PREFIX}-review → /${SKILL_PREFIX}-status"
-
-  echo "$diagram"
-}
-
-# 次ステップテキストを生成
-generate_next_step_after_start() {
-  if has_role "analyst"; then
-    echo "次のステップ: /${SKILL_PREFIX}-analyze で既存システムの分析を開始してください。"
-  elif has_role "ux-designer"; then
-    echo "次のステップ: /${SKILL_PREFIX}-design でUX設計と技術設計を並列実行してください。"
-  else
-    echo "次のステップ: /${SKILL_PREFIX}-design-tech で技術設計を開始してください。"
-  fi
-}
-
-generate_next_step_after_analyze() {
-  if has_role "ux-designer"; then
-    echo "次のステップ: /${SKILL_PREFIX}-design でUX設計と技術設計を並列実行してください。"
-  else
-    echo "次のステップ: /${SKILL_PREFIX}-design-tech で技術設計を開始してください。"
-  fi
-}
-
-generate_next_step_after_design_tech() {
-  if has_role "ux-designer"; then
-    cat <<EOF
-次のステップ:
-- /${SKILL_PREFIX}-design-ux がまだなら実行してください
-- 両方完了したら /${SKILL_PREFIX}-review でレビューを開始してください
-EOF
-  else
-    echo "次のステップ: /${SKILL_PREFIX}-review でレビューを開始してください。"
-  fi
-}
 
 # テンプレート変数を置換（全てファイルベースで処理）
+# 注意: 本関数は常にコマンド置換（サブシェル）経由で呼ばれるため、
+# 親シェル変数へのキャッシュは機能しない。vars_dir は毎回構築・毎回削除する
 process_template() {
   local input_content="$1"
 
-  # 動的変数（関数で生成する値）を一時ファイルに書き出す
   local vars_dir
   vars_dir=$(mktemp -d)
-
-  generate_active_roles_list > "${vars_dir}/ACTIVE_ROLES_LIST"
-  generate_workflow_diagram > "${vars_dir}/WORKFLOW_DIAGRAM"
   generate_tech_stack_table > "${vars_dir}/TECH_STACK_TABLE"
-  generate_next_step_after_start > "${vars_dir}/NEXT_STEP_AFTER_START"
-  generate_next_step_after_analyze > "${vars_dir}/NEXT_STEP_AFTER_ANALYZE"
-  generate_next_step_after_design_tech > "${vars_dir}/NEXT_STEP_AFTER_DESIGN_TECH"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_KOUMEI" > "${vars_dir}/CUSTOM_INSTRUCTIONS_KOUMEI"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_TECH_LEAD" > "${vars_dir}/CUSTOM_INSTRUCTIONS_TECH_LEAD"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE" > "${vars_dir}/CUSTOM_INSTRUCTIONS_DEVILS_ADVOCATE"
   printf '%s' "$DEV_RULES" > "${vars_dir}/DEV_RULES"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_ANALYST" > "${vars_dir}/CUSTOM_INSTRUCTIONS_ANALYST"
-  printf '%s' "$CUSTOM_INSTRUCTIONS_UX_DESIGNER" > "${vars_dir}/CUSTOM_INSTRUCTIONS_UX_DESIGNER"
   printf '%s' "$REFERENCE_DOCS" > "${vars_dir}/REFERENCE_DOCS"
   printf '%s' "$OUTPUT_INSTRUCTIONS" > "${vars_dir}/OUTPUT_INSTRUCTIONS"
 
@@ -1399,6 +1322,25 @@ process_template() {
 
   rm -rf "$vars_dir" "$input_file"
   printf '%s' "$result"
+}
+
+# テンプレートを描画して返す（cat → 変数置換 → 条件ブロック処理）
+render_template() {
+  local src="$1"
+  local content
+  content=$(cat "$src")
+  content=$(process_template "$content")
+  process_conditions "$content"
+}
+
+# テンプレートを描画してファイルに書き出す
+render_template_file() {
+  local src="$1"
+  local dest="$2"
+  local force="${3:-}"
+  local content
+  content=$(render_template "$src")
+  write_file "$dest" "$content" "$force"
 }
 
 # 条件ブロックを処理（Perl版）
@@ -1621,8 +1563,16 @@ do_clean() {
     log_info "削除: .agents/"
   fi
 
-  # Hooks（本フレームワークが配布した4スクリプトのみ削除）
-  for hook_name in quality-gate.sh log-operation.sh auto-format.sh notify-phase.sh; do
+  # Hooks（本フレームワークが配布したスクリプトのみ削除。テンプレート一覧と同期し、
+  # テンプレートディレクトリが見つからない場合は既知の配布済みフック名にフォールバック）
+  local hook_names=()
+  for hook_file in "${TEMPLATES_DIR}"/hooks/*.sh; do
+    [[ -f "$hook_file" ]] && hook_names+=("$(basename "$hook_file")")
+  done
+  if [[ ${#hook_names[@]} -eq 0 ]]; then
+    hook_names=(quality-gate.sh log-operation.sh auto-format.sh notify-phase.sh)
+  fi
+  for hook_name in "${hook_names[@]}"; do
     if [[ -f "hooks/${hook_name}" ]]; then
       rm -f "hooks/${hook_name}"
       log_info "削除: hooks/${hook_name}"
@@ -1681,28 +1631,22 @@ do_setup() {
   # --- エージェント定義の展開 ---
   log_step "エージェント定義を展開中..."
 
-  # TEAM.md
-  local team_content
-  team_content=$(cat "${TEMPLATES_DIR}/agents/TEAM.md.tmpl")
-  team_content=$(process_template "$team_content")
-  team_content=$(process_conditions "$team_content")
   # TEAM.md は純粋な生成ファイル（quality-gate hook が直接編集をブロックし、
   # マルチタスク機能は .agents/ のコミットを要求する）ため、Git 管理下でも強制再生成する
-  write_file ".agents/TEAM.md" "$team_content" "force"
+  render_template_file "${TEMPLATES_DIR}/agents/TEAM.md.tmpl" ".agents/TEAM.md" "force"
 
-  # ロール展開（コア: koumei/tech-lead/devils-advocate、オプション: analyst/ux-designer）
-  for role_dir in koumei tech-lead devils-advocate analyst ux-designer; do
-    # オプションロールは有効時のみ
+  # ロール展開（コア: koumei/tech-lead/devils-advocate、オプション: analyst/ux-designer、
+  # task-manager はネストsubagent前提のため claude ターゲット限定）
+  for role_dir in koumei tech-lead devils-advocate analyst ux-designer task-manager; do
     case "$role_dir" in
       analyst|ux-designer) has_role "$role_dir" || continue ;;
+      task-manager)        [[ "$TARGET_CLI" == "claude" ]] || continue ;;
     esac
 
     local tmpl="${TEMPLATES_DIR}/agents/${role_dir}/CLAUDE.md.tmpl"
     if [[ -f "$tmpl" ]]; then
       local content
-      content=$(cat "$tmpl")
-      content=$(process_template "$content")
-      content=$(process_conditions "$content")
+      content=$(render_template "$tmpl")
 
       # カスタム指示の注入（origin テンプレートにはプレースホルダが無いため末尾に追記）
       local ci=""
@@ -1731,6 +1675,8 @@ do_setup() {
         create_dir_with_gitkeep ".agents/devils-advocate/instructions"
         create_dir_with_gitkeep ".agents/devils-advocate/reviews"
         ;;
+      task-manager)
+        ;;  # 使い捨て実行役のためワークスペース不要
       *)
         create_dir_with_gitkeep ".agents/${role_dir}/instructions"
         create_dir_with_gitkeep ".agents/${role_dir}/deliverables"
@@ -1738,35 +1684,15 @@ do_setup() {
     esac
   done
 
-  # task-manager（マルチタスク実行役。ネストsubagent前提のため claude ターゲット限定）
-  if [[ "$TARGET_CLI" == "claude" ]]; then
-    local tm_tmpl="${TEMPLATES_DIR}/agents/task-manager/CLAUDE.md.tmpl"
-    if [[ -f "$tm_tmpl" ]]; then
-      local tm_content
-      tm_content=$(cat "$tm_tmpl")
-      tm_content=$(process_template "$tm_content")
-      tm_content=$(process_conditions "$tm_content")
-      write_file ".agents/task-manager/${AGENT_INSTRUCTIONS_FILENAME}" "$tm_content"
-    fi
-  fi
-
   # カスタムロールテンプレート（参照用）
   for cr_tmpl in "${TEMPLATES_DIR}"/agents/custom-roles/*/CLAUDE.md.tmpl; do
     [[ -f "$cr_tmpl" ]] || continue
     local cr_name
     cr_name=$(basename "$(dirname "$cr_tmpl")")
-    local cr_content
-    cr_content=$(cat "$cr_tmpl")
-    cr_content=$(process_template "$cr_content")
-    cr_content=$(process_conditions "$cr_content")
-    write_file ".agents/custom-roles/${cr_name}/${AGENT_INSTRUCTIONS_FILENAME}" "$cr_content"
+    render_template_file "$cr_tmpl" ".agents/custom-roles/${cr_name}/${AGENT_INSTRUCTIONS_FILENAME}"
   done
   if [[ -f "${TEMPLATES_DIR}/agents/custom-roles/README.md.tmpl" ]]; then
-    local cr_readme
-    cr_readme=$(cat "${TEMPLATES_DIR}/agents/custom-roles/README.md.tmpl")
-    cr_readme=$(process_template "$cr_readme")
-    cr_readme=$(process_conditions "$cr_readme")
-    write_file ".agents/custom-roles/README.md" "$cr_readme"
+    render_template_file "${TEMPLATES_DIR}/agents/custom-roles/README.md.tmpl" ".agents/custom-roles/README.md"
   fi
 
   # --- スキルファイルの展開 ---
@@ -1789,23 +1715,16 @@ do_setup() {
 
     local tmpl="${skill_dir}SKILL.md.tmpl"
     if [[ -f "$tmpl" ]]; then
-      local content
-      content=$(cat "$tmpl")
-      content=$(process_template "$content")
-      content=$(process_conditions "$content")
-      write_file "${SKILLS_DIR}/${target_name}/SKILL.md" "$content"
+      render_template_file "$tmpl" "${SKILLS_DIR}/${target_name}/SKILL.md"
     fi
 
     # docs/ サブディレクトリ（koumei-start / koumei-review の手順書）
     if [[ -d "${skill_dir}docs" ]]; then
       for doc_tmpl in "${skill_dir}docs/"*.md.tmpl; do
         [[ -f "$doc_tmpl" ]] || continue
-        local doc_name doc_content
+        local doc_name
         doc_name=$(basename "$doc_tmpl" .tmpl)
-        doc_content=$(cat "$doc_tmpl")
-        doc_content=$(process_template "$doc_content")
-        doc_content=$(process_conditions "$doc_content")
-        write_file "${SKILLS_DIR}/${target_name}/docs/${doc_name}" "$doc_content"
+        render_template_file "$doc_tmpl" "${SKILLS_DIR}/${target_name}/docs/${doc_name}"
       done
     fi
   done
@@ -1815,10 +1734,11 @@ do_setup() {
     log_step "Hooks を展開中..."
     for hook_file in "${TEMPLATES_DIR}"/hooks/*.sh; do
       [[ -f "$hook_file" ]] || continue
-      local hook_name hook_content
+      local hook_name
       hook_name=$(basename "$hook_file")
-      hook_content=$(cat "$hook_file")
-      write_file "hooks/${hook_name}" "$hook_content"
+      # hooks も {{COMMANDER_NAME}} 等を含むためテンプレートとして描画する
+      # （bash の ${VAR} 記法はテンプレートエンジンの {{VAR}} と衝突しないので安全）
+      render_template_file "$hook_file" "hooks/${hook_name}"
       # write_file がスキップしたファイル（Git管理下）や dry-run 中は触らない
       if ! $DRY_RUN && [[ -f "hooks/${hook_name}" ]] && ! is_git_tracked "hooks/${hook_name}"; then
         chmod +x "hooks/${hook_name}"

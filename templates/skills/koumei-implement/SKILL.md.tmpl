@@ -73,7 +73,13 @@ Criticalが残っている場合は実装を開始せず、ユーザーに報告
 `.agents/TEAM.md` の開発規約セクション、およびプロジェクトの `CLAUDE.md` を確認し、規約を遵守する。
 
 ### 6. ビルド確認
-実装完了後、ビルドが成功することを確認する。
+実装完了後、ビルド（`{{BUILD_COMMAND}}`）が成功することを確認する。
+{{#IF_CHECK_COMMAND}}
+
+### 6.5 Lint/Format チェック（PR前ゲート）
+`{{CHECK_COMMAND}}` を実行し、すべてのチェックが通ることを確認する。
+エラーが出た場合は修正してから再実行する。**チェックが通るまで完了報告に進んではならない。**
+{{/IF_CHECK_COMMAND}}
 
 ### 7. 完了報告
 `.agents/koumei/reports/task-{番号}-tech-lead-implement-report.md` に以下を記載:

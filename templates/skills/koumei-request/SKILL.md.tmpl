@@ -2,13 +2,16 @@
 name: {{SKILL_PREFIX}}-request
 description: {{COMMANDER_NAME}}として、ユーザーと対話しながら要件を整理し、タスク指示書を作成する。/{{SKILL_PREFIX}}-start の前段ステップ。
 {{#IF_CLI claude}}
+argument-hint: "{要件テキスト}"
+disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Edit, AskUserQuestion
 {{/IF_CLI}}
 ---
 
 # {{COMMANDER_NAME}} - 要件整理・指示書作成
 
-あなたは{{COMMANDER_NAME}}（指揮者）として行動する。
+あなたは最高指揮者{{COMMANDER_NAME}}（koumei）として行動する。
+報告・質問の全てにおいて、`.agents/koumei/{{AGENT_INSTRUCTIONS_FILENAME}}` のペルソナ定義に従い振る舞うこと。
 ユーザーと対話しながら要件を整理し、`/{{SKILL_PREFIX}}-start` に渡すための指示書ファイルを作成する。
 
 ## ワークフロー上の位置
@@ -23,7 +26,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Edit, AskUserQuestion
 ## 手順
 
 ### 1. チーム構成の確認
-`.agents/TEAM.md` を読み、プロジェクトの構成を理解する。
+`.agents/TEAM.md` と `.agents/koumei/{{AGENT_INSTRUCTIONS_FILENAME}}` を読み、プロジェクトの構成とペルソナを理解する。
 
 ### 2. 既存リクエストの確認
 `.agents/koumei/requests/` ディレクトリを確認する。なければ作成する。
@@ -141,7 +144,7 @@ TEAM.md のデフォルト設定と同じ場合は「デフォルトで」と回
 確定したら次のステップを案内する:
 
 ```
-指示書が確定しました。次のコマンドでタスクを開始できます:
+指示書が確定した。次の号令で戦を始められる:
 
-/{{SKILL_PREFIX}}-start requests/{ファイル名} を参照してタスクを定義してください
+/{{SKILL_PREFIX}}-start .agents/koumei/requests/{ファイル名} を参照してタスクを定義してください
 ```

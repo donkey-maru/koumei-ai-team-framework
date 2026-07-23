@@ -1,5 +1,5 @@
 #!/bin/bash
-# 孔明エージェントチーム — 自動フォーマット
+# {{COMMANDER_NAME}}エージェントチーム — 自動フォーマット
 # PostToolUse(Write|Edit|MultiEdit) で呼ばれ、対象ファイルをフォーマットする
 
 # Claude Code はフック情報を stdin の JSON で渡す（環境変数ではない）
