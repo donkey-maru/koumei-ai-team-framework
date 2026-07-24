@@ -1725,7 +1725,11 @@ do_setup() {
         local doc_name
         doc_name=$(basename "$doc_tmpl" .tmpl)
         # multi-task.md はネストsubagent前提（task-manager と同じく claude ターゲット限定）
-        [[ "$doc_name" == "multi-task.md" && "$TARGET_CLI" != "claude" ]] && continue
+        if [[ "$doc_name" == "multi-task.md" && "$TARGET_CLI" != "claude" ]]; then
+          # 旧バージョン・target_cli変更前に生成された残骸があれば削除（claude限定機能の陳腐化ファイル）
+          [[ -f "${SKILLS_DIR}/${target_name}/docs/${doc_name}" ]] && rm -f "${SKILLS_DIR}/${target_name}/docs/${doc_name}"
+          continue
+        fi
         render_template_file "$doc_tmpl" "${SKILLS_DIR}/${target_name}/docs/${doc_name}"
       done
     fi

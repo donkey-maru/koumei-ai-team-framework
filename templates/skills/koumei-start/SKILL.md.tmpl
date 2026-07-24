@@ -1,6 +1,14 @@
 ---
 name: {{SKILL_PREFIX}}-start
+{{#IF_CLI claude}}
 description: {{COMMANDER_NAME}}として新しいタスクを開始する。全自動/順次/マルチタスクモードを選択し、要件定義からPR作成までを統括する。
+{{/IF_CLI}}
+{{#IF_CLI codex}}
+description: {{COMMANDER_NAME}}として新しいタスクを開始する。全自動/順次モードを選択し、要件定義からPR作成までを統括する。
+{{/IF_CLI}}
+{{#IF_CLI antigravity}}
+description: {{COMMANDER_NAME}}として新しいタスクを開始する。全自動/順次モードを選択し、要件定義からPR作成までを統括する。
+{{/IF_CLI}}
 {{#IF_CLI claude}}
 argument-hint: "{要件テキスト} [--manual] [--multi]"
 disable-model-invocation: true
@@ -29,7 +37,7 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 
 - **レビュー（devils-advocate）は必ず独立した別エージェントで実行すること**（統合禁止）
 - タスク種別（軽微修正/バグ修正小/中/機能追加）でフェーズスキップあり。ただし **Phase 6（コードレビュー）はいかなる種別でもスキップ禁止**
-- サブエージェント起動時は TEAM.md のモデル列を `model` パラメータに指定する（[docs/phases.md](docs/phases.md) 冒頭参照）
+- サブエージェント起動時は TEAM.md のモデル列をモデル指定に反映する（反映方法はCLIに依存。詳細は [docs/phases.md](docs/phases.md) 冒頭参照）
 
 ---
 
@@ -40,11 +48,15 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 1. **`--manual` が含まれる場合** → 順次モード（Phase 0 のみ実行し案内して終了）
 {{#IF_CLI claude}}
 2. **`--multi` が含まれる場合** → マルチタスクモード（[docs/multi-task.md](docs/multi-task.md) の手順で実行）
-{{/IF_CLI}}
-3. **どちらも含まれない場合** → AskUserQuestion でモード選択を提示:
+3. **どちらも含まれない場合** → ユーザーに選択肢を提示して確認する（提示方法はCLIに依存。claude の場合は AskUserQuestion）:
 
-{{#IF_CLI claude}}
 ※ 要件テキストに独立した複数の要求が含まれると判断した場合は、選択肢にマルチタスクモードを加えて提示すること。
+{{/IF_CLI}}
+{{#IF_CLI codex}}
+2. **`--manual` が含まれない場合** → ユーザーに選択肢を提示して確認する（提示方法はCLIに依存）:
+{{/IF_CLI}}
+{{#IF_CLI antigravity}}
+2. **`--manual` が含まれない場合** → ユーザーに選択肢を提示して確認する（提示方法はCLIに依存）:
 {{/IF_CLI}}
 
 ```
@@ -68,7 +80,10 @@ allowed-tools: Read Write Glob Grep Bash Edit Agent AskUserQuestion
 
 ### 手順 3. 引数の処理・タスク種別判定
 - `$ARGUMENTS`（`--manual` を除いた部分）が指定されている場合、それをタスクの概要として使用する
-- 指定がない場合、AskUserQuestion でユーザーにタスクの概要を確認する
+- 指定がない場合、ユーザーにタスクの概要を確認する（確認方法はCLIに依存）
+{{#IF_CLI claude}}
+claude の場合は AskUserQuestion を使用する。
+{{/IF_CLI}}
 - タスク種別を判定し、タスク定義ファイルに記録する（判定基準は [docs/rules.md](docs/rules.md) 参照）
 
 ### 手順 4. タスク定義ファイルの作成
