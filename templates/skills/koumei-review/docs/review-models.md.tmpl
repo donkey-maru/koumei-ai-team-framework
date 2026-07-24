@@ -81,5 +81,8 @@ TEAM.md「外部CLIモデル定義」に登録された CLI（例: grok → `gro
 ## 手順C: Claude でレビュー実行（デフォルト・フォールバック）
 
 - 従来通り devils-advocate エージェントにレビューを委譲する
-- 起動時、`.agents/TEAM.md`「チーム構成」の devils-advocate のモデル列を Agent tool の `model` パラメータに指定する（既定: fable）
-- レビュー観点は `devils-advocate/CLAUDE.md` に定義されたものを使用する
+- 起動時、`.agents/TEAM.md`「チーム構成」の devils-advocate のモデル列をサブエージェント起動時のモデル指定に反映する（既定: fable。反映方法はCLIに依存）
+{{#IF_CLI claude}}
+- claude の場合は Agent tool の `model` パラメータに指定する
+{{/IF_CLI}}
+- レビュー観点は `devils-advocate/{{AGENT_INSTRUCTIONS_FILENAME}}` に定義されたものを使用する
