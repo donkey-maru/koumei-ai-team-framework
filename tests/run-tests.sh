@@ -114,6 +114,8 @@ assert_not "check_command 空 → lint ゲート節なし" grep -q "Lint/Format 
 assert "TEAM.md に analyst 行なし（IF_ROLE）" test "$(grep -c 'システム分析担当' .agents/TEAM.md)" -eq 0
 assert "参照ドキュメント空 → （登録なし）" grep -q "（登録なし）" .agents/TEAM.md
 assert "Phase 7 にドキュメント反映ステップ" grep -q "requirements-spec-design.md" .claude/skills/koumei-start/docs/phases.md
+assert "claude ターゲットでは Agent tool 記述が残る（IF_CLI誤爆なし）" grep -q "Agent tool" .claude/skills/koumei-start/docs/phases.md
+assert "multi-task.md は claude ターゲットで生成される" test -f .claude/skills/koumei-start/docs/multi-task.md
 assert "TEAM.md に2層構成の説明" grep -q "requirements-spec-design.md" .agents/TEAM.md
 assert "SKILL.md の Phase表もドキュメント反映を明記" grep -q "ドキュメント反映 + PR作成" .claude/skills/koumei-start/SKILL.md
 assert "task-template のチェックリストも同期" grep -q "Phase 7: ドキュメント反映 + PR作成" .claude/skills/koumei-start/docs/task-template.md
@@ -153,6 +155,8 @@ assert_not "claude固有frontmatterなし" grep -q "disable-model-invocation" .c
 assert "docs 内パスが .codex/skills" grep -q ".codex/skills/koumei-analyze" .codex/skills/koumei-start/docs/phases.md
 assert "ロール参照が AGENTS.md" grep -q "agents/koumei/AGENTS.md" .codex/skills/koumei-start/SKILL.md
 assert_not "TEAM.md にマルチタスク節なし" grep -q "マルチタスク実行" .agents/TEAM.md
+assert_not "multi-task.md 未生成（claude限定機能）" test -f .codex/skills/koumei-start/docs/multi-task.md
+assert_not "実行手順書に Agent tool 参照なし（Claude Code固有機構、issue#13）" grep -rq "Agent tool" .codex/skills
 
 # ------------------------------------------------------------
 echo ""
@@ -162,6 +166,8 @@ bash "$SETUP" > setup.log 2>&1 || ng "setup.sh 実行"
 assert "スキルは .agents/skills に配置" test -d .agents/skills/koumei-start
 assert "ロール定義は AGENTS.md" test -f .agents/koumei/AGENTS.md
 assert_not "hooks 未配布" test -d hooks
+assert_not "multi-task.md 未生成（claude限定機能）" test -f .agents/skills/koumei-start/docs/multi-task.md
+assert_not "実行手順書に Agent tool 参照なし（Claude Code固有機構、issue#13）" grep -rq "Agent tool" .agents/skills
 
 # ------------------------------------------------------------
 echo ""

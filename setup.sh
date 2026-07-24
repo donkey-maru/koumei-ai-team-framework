@@ -1724,6 +1724,8 @@ do_setup() {
         [[ -f "$doc_tmpl" ]] || continue
         local doc_name
         doc_name=$(basename "$doc_tmpl" .tmpl)
+        # multi-task.md はネストsubagent前提（task-manager と同じく claude ターゲット限定）
+        [[ "$doc_name" == "multi-task.md" && "$TARGET_CLI" != "claude" ]] && continue
         render_template_file "$doc_tmpl" "${SKILLS_DIR}/${target_name}/docs/${doc_name}"
       done
     fi
