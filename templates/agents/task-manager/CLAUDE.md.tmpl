@@ -44,14 +44,43 @@ git worktree add ../{リポジトリ名}-task-{番号} -b {ブランチ名} "ori
 - サブエージェント起動時のモデルは `.agents/TEAM.md`「チーム構成」のモデル列に従う
 - 成果物・報告のパスは worktree 内の `.agents/` を使用する
 
-### 3. 後片付け
-Phase 7 でブランチを push し PR を作成した後、worktree を削除する（ブランチは残る）:
+### 3. 成果物の回収（worktree を消す前に必ず）
+
+**`.agents/` が Git 管理下に無い場合、worktree を消せば成果物も一緒に消える。**
+成果物は worktree 内の `.agents/` に書かれ、コミットされないため**ブランチにも残らない**。
+実際に、設計レビューの判定と指摘が worktree ごと失われた事例がある。
+PR は残るのに、**何を指摘され何を直したかの記録だけが消える。**
+
+worktree を削除する前に、本体へ回収する:
+
+```bash
+MAIN=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+WT=$(git rev-parse --show-toplevel)
+[ "$WT" = "$MAIN" ] || for d in deliverables reviews reports tasks logs; do
+  find "$WT/.agents" -type d -name "$d" | while IFS= read -r src; do
+    dst="$MAIN/${src#"$WT"/}"
+    mkdir -p "$dst" && cp -Rn "$src"/. "$dst"/ 2>/dev/null || true
+  done
+done
+```
+
+**上書きはしない（`cp -n`）。** 本体側の同名ファイルのほうが新しい場合があるため。
+回収するのは**成果物・レビュー・報告・タスク定義・ログの5種**のみ。
+役割定義やスキルは本体が正であるから触らない。
+
+`.agents/` をリポジトリにコミットしている場合でも、この回収は無害である（同名は上書きされない）。
+**コミットしているか否かを判じてから回収するのではなく、常に回収すること。**
+判定を挟めば、判定を誤ったときに黙って消える。
+
+### 4. 後片付け
+成果物の回収を終えてから、worktree を削除する（ブランチは残る）:
 
 ```bash
 git worktree remove ../{リポジトリ名}-task-{番号}
 ```
 
 HALTED / FAILED の場合は worktree を削除せず残す（ユーザーが状況確認・手動修正できるようにするため）。
+**この場合も回収は行う。** 残置された worktree は、後日ユーザーの判断で消される。
 
 ## 制約（厳守）
 

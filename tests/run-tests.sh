@@ -978,8 +978,8 @@ assert "Phase 1: 設定不備をフォールバックで隠すなと書く" \
   grep -q "自動フォールバックで隠してはならない" <<<"$p1"
 
 # --- 付け替えが割に合うかを後から測れるようにする（issue #30 の検証項目） ---
-assert "Phase 1: 委譲先の消費を完了報告に残させる" grep -q "完了報告に1行記す" <<<"$p1"
-assert "Phase 1: 固定費があることを書く" grep -q "14〜16k" <<<"$p1"
+assert "Phase 1: 委譲先の消費をフェーズ台帳へ書かせる" grep -q "フェーズ台帳へ書く" <<<"$p1agy"
+assert "Phase 1: 記録先を一箇所に定めると明記" grep -q "完了報告ではなく台帳に書く" <<<"$p1agy"
 
 # --- git 禁止が Phase 1 の全経路に届くか（Phase 5 と同じ検査） ---
 assert "Phase 1 agy: プロンプトに git 禁止が届く" grep -q "git 操作を一切行わないこと" <<<"$p1agy"
@@ -1032,6 +1032,133 @@ assert "configuration: 委譲できるフェーズの節がある" grep -q "^###
 assert "config 例: 委譲対応フェーズが注記される" \
   grep -q "外部CLI委譲に対応しているのは analyst（Phase 1）と tech-lead-implement（Phase 5）" \
   "${REPO_DIR}/koumei.config.example.yaml"
+
+# ------------------------------------------------------------
+echo ""
+echo "[T23] 実行諸元の台帳と、worktree 成果物の回収"
+
+make_project "$WORK_DIR/t23" \
+  's/^  # - analyst.*/  - analyst/' \
+  's/^  # - ux-designer.*/  - ux-designer/'
+bash "$SETUP" > setup.log 2>&1 || ng "setup.sh 実行 (T23)"
+PH=.claude/skills/koumei-start/docs/phases.md
+TM=.agents/task-manager/CLAUDE.md
+MT=.claude/skills/koumei-start/docs/multi-task.md
+TMD=.agents/TEAM.md
+
+# --- 台帳（元の欠陥: 実行モデルが成果物のどこにも残らず、config を変えると過去と区別がつかない） ---
+guard=$(awk '/^## フェーズ完了時の検査/,/^## Git 運用/' "$PH")
+assert "台帳の節が立つ" grep -q "^### 実行諸元の記録（フェーズ台帳）" <<<"$guard"
+assert "台帳のパスが定まっている" grep -q "task-{番号}-execution.md" <<<"$guard"
+assert "台帳に実行諸元の列がある" grep -q "実行諸元" <<<"$guard"
+assert "台帳に委譲先の消費の列がある" grep -q "委譲先の消費" <<<"$guard"
+
+# 書き手の取り違え（自己申告させると外れる）
+assert "書くのは指揮者だと明記" grep -q "書き手に自己申告させれば外れる" <<<"$guard"
+assert "サブエージェントは自分のモデルを知らないと明記" \
+  grep -q "自分がどのモデルで起動されたかを確実には知らない" <<<"$guard"
+
+# 置き場所（独立指示は落ちる —— issue #30 の実測で完了報告への記録が落ちた）
+assert "サイズ検査に相乗りさせるのが意図的だと明記" grep -q "相乗りさせるのは意図的である" <<<"$guard"
+assert "独立指示は落ちると明記" grep -q "という形の指示は実行時に落ちる" <<<"$guard"
+assert "台帳も絶対パスで追記させる" grep -q "リポジトリルートからの絶対パス" <<<"$guard"
+
+# なぜ要るか（モデル配置の比較が目的）
+assert "config 書き換えで区別がつかなくなると明記" grep -q "過去と現在の区別がつかなくなる" <<<"$guard"
+assert "差し戻し回数・指摘件数の比較が目的だと書く" grep -q "差し戻し回数・レビュー指摘件数" <<<"$guard"
+
+# 記録先の一本化（二箇所あると食い違う）
+assert "委譲の消費も台帳へ集約する" grep -q "フェーズ台帳へ書く" "$PH"
+assert "完了報告ではなく台帳だと明記" grep -q "完了報告ではなく台帳に書く" "$PH"
+assert_not "旧: 完了報告に1行記す が残らない" grep -q "完了報告に1行記す" "$PH"
+assert_not "旧: analyze スキル側も完了報告に残さない" \
+  grep -q "完了報告に1行記す" .claude/skills/koumei-analyze/SKILL.md
+assert "analyze スキルも台帳を指す" grep -q "task-{番号}-execution.md" .claude/skills/koumei-analyze/SKILL.md
+assert "TEAM.md の命名規則に台帳がある" grep -q "実行台帳: \`{タスクID}-execution.md\`" "$TMD"
+
+# --- worktree 成果物の回収（元の欠陥: 消せば成果物ごと消え、ブランチにも残らない） ---
+assert "task-manager に回収の節が立つ" grep -q "^### 3. 成果物の回収（worktree を消す前に必ず）" "$TM"
+assert "回収が後片付けより前に来る" \
+  bash -c 'test "$(grep -n "成果物の回収（worktree" '"$TM"' | cut -d: -f1)" -lt "$(grep -n "^### 4. 後片付け" '"$TM"' | cut -d: -f1)"'
+assert "消せば成果物も消えると書く" grep -q "worktree を消せば成果物も一緒に消える" "$TM"
+assert "ブランチにも残らないと書く" grep -q "ブランチにも残らない" "$TM"
+assert "実際に失われた事例を残す" grep -q "worktree ごと失われた事例がある" "$TM"
+assert "本体は git-common-dir から求める" grep -q -- "--git-common-dir" "$TM"
+assert "上書きしない（cp -n）" grep -q -- "cp -Rn" "$TM"
+assert "回収対象は5種" grep -q "deliverables reviews reports tasks logs" "$TM"
+assert "役割定義・スキルは触らないと明記" grep -q "本体が正であるから触らない" "$TM"
+
+# 判定を挟むと黙って消える（コミット済みか否かで分岐させない）
+assert "常に回収させる" grep -q "常に回収すること" "$TM"
+assert "判定を誤れば黙って消えると書く" grep -q "判定を誤ったときに黙って消える" "$TM"
+assert "HALTED/FAILED でも回収する" grep -q "この場合も回収は行う" "$TM"
+
+# 旧記述（回収せずに消す手順）が残っていないこと
+assert_not "旧: 回収に触れず worktree を消す記述が残らない" \
+  grep -q "Phase 7 でブランチを push し PR を作成した後、worktree を削除する" "$TM"
+
+# --- multi-task 側の追随 ---
+assert "multi-task: 回収は常に行うと明記" grep -q "成果物の回収は、コミットの有無にかかわらず必ず行う" "$MT"
+assert "multi-task: 残置 worktree も消す前に確認させる" grep -q "成果物が本体へ回収されているか確かめる" "$MT"
+assert "multi-task: 消えるのは記録だけだと書く" grep -q "何を指摘され何を直したかの記録だけが消える" "$MT"
+assert_not "旧: .agents のコミットを前提と言い切る記述が残らない" \
+  grep -q "がリポジトリにコミットされていること（worktree 内で参照するため）" "$MT"
+
+# --- 回収スクリプトを実物として動かす（文書検査だけでは動くことの証明にならない） ---
+REC_SRC="$WORK_DIR/t23/.agents/task-manager/CLAUDE.md"
+REC=$(awk '/^### 3\. 成果物の回収/,/^### 4\. 後片付け/' "$REC_SRC" | awk '/^```bash/{f=1;next} f&&/^```/{exit} f')
+if [[ -z "$REC" ]]; then
+  ng "回収スクリプトを文書から抽出できる"
+else
+  ok "回収スクリプトを文書から抽出できる"
+  assert "抽出した回収スクリプトの bash 構文" bash -c "bash -n <<'EOS'
+$REC
+EOS"
+
+  # 本体 + worktree を実際に作り、文書のスクリプトをそのまま走らせる
+  RT="$WORK_DIR/t23-run"; mkdir -p "$RT" && cd "$RT"
+  git init -q && git config user.email t@t.local && git config user.name t
+  echo seed > seed.txt && git add -A && git commit -qm init
+
+  # 本体側に「既に在る」報告（回収で上書きされてはならない）
+  mkdir -p .agents/koumei/reports
+  echo "MAIN-VERSION" > .agents/koumei/reports/task-1-analyst-report.md
+
+  git worktree add -q "$RT/wt" -b task-1 2>/dev/null
+  mkdir -p wt/.agents/koumei/reports wt/.agents/devils-advocate/reviews \
+           wt/.agents/analyst/deliverables wt/.agents/logs wt/.agents/koumei/tasks
+  echo "WT-VERSION"      > wt/.agents/koumei/reports/task-1-analyst-report.md   # 衝突させる
+  echo "ledger"          > wt/.agents/koumei/reports/task-1-execution.md
+  echo "design review"   > wt/.agents/devils-advocate/reviews/task-1-design-review.md
+  echo "analysis"        > wt/.agents/analyst/deliverables/task-1-analysis.md
+  echo "agy log"         > wt/.agents/logs/agy-task-1.json
+  echo "task def"        > wt/.agents/koumei/tasks/task-1.md
+  # 触ってはならないもの（役割定義は本体が正）
+  echo "WT-ROLE"         > wt/.agents/analyst/CLAUDE.md
+
+  ( cd wt && eval "$REC" ) > /dev/null 2>&1
+
+  assert "回収: 設計レビューが本体に届く"   test -f "$RT/.agents/devils-advocate/reviews/task-1-design-review.md"
+  assert "回収: 分析成果物が本体に届く"     test -f "$RT/.agents/analyst/deliverables/task-1-analysis.md"
+  assert "回収: 実行台帳が本体に届く"       test -f "$RT/.agents/koumei/reports/task-1-execution.md"
+  assert "回収: 委譲ログが本体に届く"       test -f "$RT/.agents/logs/agy-task-1.json"
+  assert "回収: タスク定義が本体に届く"     test -f "$RT/.agents/koumei/tasks/task-1.md"
+  assert "回収: 本体の既存ファイルを上書きしない" \
+    grep -q "MAIN-VERSION" "$RT/.agents/koumei/reports/task-1-analyst-report.md"
+  assert_not "回収: 役割定義は持ち込まない" test -f "$RT/.agents/analyst/CLAUDE.md"
+
+  # 本体で走らせても何もしない（自分自身を自分へコピーしない）
+  BEFORE=$(find "$RT/.agents" -type f | sort | md5 2>/dev/null || find "$RT/.agents" -type f | sort | md5sum)
+  ( cd "$RT" && eval "$REC" ) > /dev/null 2>&1
+  AFTER=$(find "$RT/.agents" -type f | sort | md5 2>/dev/null || find "$RT/.agents" -type f | sort | md5sum)
+  assert "回収: 本体で走らせても何も起きない" test "$BEFORE" = "$AFTER"
+fi
+
+# --- ロール無効時に漏れないこと ---
+make_project "$WORK_DIR/t23-min"
+bash "$SETUP" > setup.log 2>&1 || ng "setup.sh 実行 (T23 min)"
+assert "最小ロールでも台帳の節は残る" \
+  grep -q "^### 実行諸元の記録（フェーズ台帳）" .claude/skills/koumei-start/docs/phases.md
 
 # ------------------------------------------------------------
 echo ""
